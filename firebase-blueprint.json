@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Stores user profile information like full name and roles.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 200
+        }
+      },
+      "required": ["id", "fullName", "role", "email"]
+    },
+    "Wedding": {
+      "title": "Wedding",
+      "description": "Represents a wedding event including configuration, schedule, guest list, and concierge settings.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "weddingCode": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "coupleNames": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "coupleEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "couplePhone": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "weddingDate": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "venue": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "city": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "country": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "bannerImage": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "welcomeMessage": {
+          "type": "string",
+          "maxLength": 3000
+        },
+        "currency": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "conciergeEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "conciergePhone": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "conciergeWhatsApp": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "couplePassword": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "dressCode": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "story": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "schedule": {
+          "type": "array"
+        },
+        "galleryPhotos": {
+          "type": "array"
+        },
+        "secondaryInfo": {
+          "type": "array"
+        },
+        "broadcastAnnouncements": {
+          "type": "array"
+        },
+        "hotels": {
+          "type": "array"
+        },
+        "transfers": {
+          "type": "array"
+        },
+        "experiences": {
+          "type": "array"
+        },
+        "extraServices": {
+          "type": "array"
+        },
+        "guests": {
+          "type": "array"
+        },
+        "giftRequests": {
+          "type": "array"
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "required": ["id", "weddingCode", "coupleNames"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Represents a real-time concierge chat message.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "weddingCode": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "guestEmail": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "guestName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "sender": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "required": ["id", "weddingCode", "text", "sender"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "User profile information."
+    },
+    "/weddings/{weddingId}": {
+      "schema": {
+        "$ref": "#/entities/Wedding"
+      },
+      "description": "Collection of wedding events with logistics, RSVP guests, and information."
+    },
+    "/chat_messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/ChatMessage"
+      },
+      "description": "Collection of concierge chat messages between guests, couple, and concierge."
+    }
+  }
+}

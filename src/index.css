@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+:root {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: #fcfbf9;
+  color: #4f463d;
+}
+
+::selection {
+  background-color: #292524;
+  color: #fef3c2;
+}
+
+.font-serif-luxury {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.font-code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Correzione robusta per classi custom Tailwind non native come stone-750 */
+.bg-stone-750 {
+  background-color: #292524 !important;
+  color: #ffffff !important;
+}
+
+.hover\:bg-stone-750:hover {
+  background-color: #1c1917 !important;
+  color: #ffffff !important;
+}
+
+.file\:bg-stone-750::file-selector-button {
+  background-color: #292524 !important;
+  color: #ffffff !important;
+}
+
+/* Garantisce contrasto elevato per pulsanti attivi, hover e stati interattivi */
+button:not(:disabled), [role="button"] {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+button:not(:disabled):hover {
+  opacity: 0.92;
+}
+
+.bg-amber-900 {
+  background-color: #78350f !important;
+  color: #ffffff !important;
+}
+
+.bg-stone-800 {
+  background-color: #292524 !important;
+  color: #ffffff !important;
+}
+
+.text-amber-950 {
+  color: #451a03 !important;
+}

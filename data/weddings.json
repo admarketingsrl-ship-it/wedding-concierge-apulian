@@ -1,0 +1,1037 @@
+[
+  {
+    "id": "wed-1",
+    "weddingCode": "CHIARA-MATTEO-2026",
+    "coupleNames": "Chiara Rossi & Matteo De Luca",
+    "coupleEmail": "chiara.matteo@admarketing.it",
+    "weddingDate": "2026-09-12",
+    "venue": "Borgo Egnazia Resort",
+    "city": "Fasano (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Benvenuti al nostro matrimonio in Puglia! Vi aspettiamo a Borgo Egnazia per festeggiare insieme. Il concierge di Valeria e AD Marketing è a vostra disposizione.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Puglia Chic & Summer Elegance",
+    "story": "Un amore nato a Roma e coronato tra gli ulivi secolari di Puglia.",
+    "hotels": [
+      {
+        "id": "hotel-puglia-1",
+        "name": "Borgo Egnazia Resort & Spa (5★ Lusso)",
+        "stars": 5,
+        "address": "Contrada Losciale, Fasano (BR)",
+        "distanceToVenue": "Sede della cerimonia e ricevimento",
+        "negotiatedRate": 520,
+        "currency": "EUR",
+        "bookingDeadline": "2026-07-31",
+        "groupCode": "CHIARA-MATTEO-2026",
+        "supplierId": "sup-borgo",
+        "websiteUrl": "https://www.borgoegnazia.it/prenotazioni",
+        "bookingEngineType": "DIRECT_ENGINE",
+        "pricingManagedByAgency": true,
+        "negotiatedPerk": "Bottiglia di Primitivo di Manduria DOC in camera e colazione pugliese inclusa.",
+        "roomTypes": [
+          {
+            "id": "rt-p1-1",
+            "name": "Corte Bella Suite (Vista Ulivi)",
+            "pricePerNight": 520,
+            "totalBlocked": 40,
+            "availableRooms": 16,
+            "maxOccupancy": 2
+          },
+          {
+            "id": "rt-p1-2",
+            "name": "Borgo Splendida con Terrazza",
+            "pricePerNight": 680,
+            "totalBlocked": 20,
+            "availableRooms": 8,
+            "maxOccupancy": 3
+          }
+        ]
+      },
+      {
+        "id": "hotel-puglia-2",
+        "name": "Masseria Torre Coccaro (5★)",
+        "stars": 5,
+        "address": "C.da Coccaro 8, Savelletri di Fasano (BR)",
+        "distanceToVenue": "5 min da Borgo Egnazia (navetta inclusa)",
+        "negotiatedRate": 460,
+        "currency": "EUR",
+        "bookingDeadline": "2026-08-10",
+        "groupCode": "CHIARA-MATTEO-2026",
+        "supplierId": "sup-masseria-torre",
+        "websiteUrl": "https://www.torrecoccaro.com/booking",
+        "bookingEngineType": "DIRECT_ENGINE",
+        "pricingManagedByAgency": true,
+        "negotiatedPerk": "Accesso omaggio al Coccaro Beach Club con lettini riservati.",
+        "roomTypes": [
+          {
+            "id": "rt-p1-3",
+            "name": "Junior Suite nell'Uliveto",
+            "pricePerNight": 460,
+            "totalBlocked": 15,
+            "availableRooms": 6,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-puglia-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Collettiva Bari Aeroporto (BRI) → Borgo Egnazia",
+        "origin": "Aeroporto di Bari Palese (BRI)",
+        "destination": "Borgo Egnazia Resort / Savelletri",
+        "departureTime": "Corse alle 11:30, 15:00 e 19:30",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 8,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia",
+        "negotiatedPerk": "Autista bilingue con cartello nominativo all'uscita arrivi"
+      },
+      {
+        "id": "tr-puglia-2",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Collettiva Brindisi Aeroporto (BDS) → Borgo Egnazia",
+        "origin": "Aeroporto del Salento Brindisi (BDS)",
+        "destination": "Borgo Egnazia Resort / Savelletri",
+        "departureTime": "Corse alle 12:00 e 18:00",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 4,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia",
+        "negotiatedPerk": "Acqua fresca e salviette rinfrescanti a bordo"
+      },
+      {
+        "id": "tr-puglia-3",
+        "type": "PRIVATE_NCC",
+        "title": "Transfer Privato Esclusivo NCC Mercedes Classe V",
+        "origin": "Bari o Brindisi Aeroporto",
+        "destination": "Qualsiasi Masseria / Hotel selezionato",
+        "departureTime": "Servizio privato H24 su misura",
+        "vehicleType": "Mercedes Classe V Luxury (fino a 7 pax)",
+        "capacity": 7,
+        "bookedSeats": 2,
+        "pricePerSeat": 180,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia",
+        "negotiatedPerk": "Tratta privata diretta senza attese, autista dedicato in giacca e cravatta"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-puglia-1",
+        "title": "Gita in Barca al Tramonto alle Grotte di Polignano a Mare",
+        "category": "BOAT_TOUR",
+        "eventDate": "2026-09-11",
+        "startTime": "17:30 - 20:00",
+        "durationHours": 2.5,
+        "meetingPoint": "Porto Turistico Cala Ponte, Polignano a Mare",
+        "pricePerPerson": 85,
+        "isHostSponsored": false,
+        "maxParticipants": 28,
+        "bookedParticipants": 18,
+        "dressCode": "Resort Chic / Casual Elegante",
+        "description": "Tour panoramico in barca d'epoca tra le scogliere di Polignano con aperitivo al tramonto, crudi di mare e bollicine pugliesi.",
+        "supplierId": "sup-boat-polignano",
+        "image": "/src/assets/images/wedding_boat_experience_1791309131765.jpg",
+        "negotiatedPerk": "Aperitivo con focaccia barese calda, formaggi pugliesi e bollicine locali incluso"
+      },
+      {
+        "id": "exp-puglia-2",
+        "title": "Festa Tradizionale Pugliese con Pizzica, Tamburelli e Panzerotti nell'Aia",
+        "category": "WELCOME_PARTY",
+        "eventDate": "2026-09-11",
+        "startTime": "19:30 - 23:30",
+        "durationHours": 4,
+        "meetingPoint": "Aia Storica di Borgo Egnazia",
+        "pricePerPerson": 0,
+        "isHostSponsored": true,
+        "maxParticipants": 120,
+        "bookedParticipants": 42,
+        "dressCode": "Puglia Folk Chic",
+        "description": "Grande festa serale di benvenuto per tutti gli ospiti con panzerottari live, mozzarellaro che fila sul posto e balli tradizionali con gruppo di pizzica salentina.",
+        "supplierId": "sup-borgo",
+        "image": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+        "negotiatedPerk": "Tutti i cibi, vini locali e cocktail tipici offerti con affetto dagli Sposi"
+      },
+      {
+        "id": "exp-puglia-3",
+        "title": "Tour dell'Olio Extravergine & Degustazione nei Frantoi Ipogei",
+        "category": "OIL_TOUR",
+        "eventDate": "2026-09-13",
+        "startTime": "10:30 - 13:00",
+        "durationHours": 2.5,
+        "meetingPoint": "Frantoio Ipogeo della Masseria",
+        "pricePerPerson": 60,
+        "isHostSponsored": false,
+        "maxParticipants": 30,
+        "bookedParticipants": 12,
+        "dressCode": "Scarpe comode per frantoio",
+        "description": "Passeggiata tra ulivi millenari, visita guidata all'antico frantoio del '400 e degustazione guidata di tre oli monovarietali pugliesi con pane di Altamura.",
+        "supplierId": "sup-masseria-san-domenico",
+        "negotiatedPerk": "Bottiglietta degustazione da 100ml in omaggio per ogni ospite"
+      },
+      {
+        "id": "exp-puglia-4",
+        "title": "Cooking Class di Orecchiette con le Massaie Pugliesi",
+        "category": "COOKING_CLASS",
+        "eventDate": "2026-09-13",
+        "startTime": "11:00 - 14:00",
+        "durationHours": 3,
+        "meetingPoint": "Cucina all'aperto della Masseria",
+        "pricePerPerson": 55,
+        "isHostSponsored": false,
+        "maxParticipants": 25,
+        "bookedParticipants": 9,
+        "dressCode": "Casual",
+        "description": "Impara i segreti per impastare e modellare le orecchiette a mano col coltellino pugliese con le massaie locali. A seguire pranzo conviviale.",
+        "supplierId": "sup-masseria-torre",
+        "negotiatedPerk": "Grembiule personalizzato del matrimonio e calice di primitivo inclusi"
+      }
+    ],
+    "extraServices": [
+      {
+        "id": "srv-puglia-1",
+        "title": "Trucco Professionale in Camera per la Cerimonia",
+        "category": "MAKEUP",
+        "price": 90,
+        "isPaidByCouple": false,
+        "duration": "50 min",
+        "description": "Make-up a lunga tenuta applicato direttamente nella tua camera in hotel dal team Glam di Chiara Valente.",
+        "providerName": "Chiara Valente Bridal Glam"
+      }
+    ],
+    "guests": [
+      {
+        "id": "g-1",
+        "name": "Aidan & Clodagh Murphy",
+        "email": "aidan.murphy@dublin.ie",
+        "phone": "+353 1 496 0000",
+        "country": "Irlanda",
+        "flag": "🇮🇪",
+        "hotelBooked": "Borgo Egnazia Resort & Spa (5★ Lusso)",
+        "roomType": "Corte Bella Suite (Vista Ulivi)",
+        "transferBooked": "Navetta Collettiva Bari Aeroporto (BRI)",
+        "flight": "Aer Lingus EI432 (10:45)",
+        "experiences": [
+          "Gita in Barca al Tramonto alle Grotte di Polignano a Mare",
+          "Festa Tradizionale Pugliese con Pizzica, Tamburelli e Panzerotti nell'Aia"
+        ],
+        "extraServices": [
+          "Trucco Professionale in Camera per la Cerimonia"
+        ],
+        "diet": "Celiachia (Senza glutine)",
+        "status": "CONFIRMED",
+        "totalAmountDue": 210,
+        "paymentStatus": "PAID",
+        "registeredAt": "2026-08-15"
+      },
+      {
+        "id": "g-2",
+        "name": "Eleanor Vance",
+        "email": "eleanor.vance@gmail.com",
+        "phone": "+1 212 555 0199",
+        "country": "Stati Uniti",
+        "flag": "🇺🇸",
+        "hotelBooked": "Borgo Egnazia Resort & Spa (5★ Lusso)",
+        "roomType": "Corte Bella Suite (Vista Ulivi)",
+        "transferBooked": "Navetta Collettiva Bari Aeroporto (BRI)",
+        "flight": "Delta DL142 (11:00)",
+        "experiences": [
+          "Gita in Barca al Tramonto alle Grotte di Polignano a Mare"
+        ],
+        "extraServices": [],
+        "diet": "Nessuna",
+        "status": "CONFIRMED",
+        "totalAmountDue": 120,
+        "paymentStatus": "PAID",
+        "registeredAt": "2026-08-18"
+      }
+    ],
+    "schedule": [
+      {
+        "id": "ev-1",
+        "time": "16:30",
+        "title": "Welcome Drink",
+        "location": "Corte degli Aranci",
+        "description": "Accoglienza con bevande fresche tipiche"
+      },
+      {
+        "id": "ev-2",
+        "time": "17:15",
+        "title": "Cerimonia di Nozze",
+        "location": "Giardino degli Ulivi",
+        "description": "Rito nuziale tra gli ulivi"
+      },
+      {
+        "id": "ev-3",
+        "time": "18:45",
+        "title": "Aperitivo al Tramonto",
+        "location": "Piscina del Borgo",
+        "description": "Crudi pugliesi, mozzarelle e calici di vino"
+      },
+      {
+        "id": "ev-4",
+        "time": "20:30",
+        "title": "Cena Placée sotto le Luminarie",
+        "location": "Piazza del Borgo",
+        "description": "Banchetto tradizionale pugliese"
+      },
+      {
+        "id": "ev-5",
+        "time": "23:30",
+        "title": "Taglio Torta, Open Bar & Festa",
+        "location": "Corte Notturna",
+        "description": "Musica dal vivo, DJ set e cocktail"
+      }
+    ],
+    "secondaryInfo": [
+      {
+        "id": "sec-1",
+        "title": "Come Arrivare & Parcheggio",
+        "category": "logistics",
+        "content": "Parcheggio interno gratuito con valet parking custodito."
+      },
+      {
+        "id": "sec-2",
+        "title": "Dress Code & Consigli",
+        "category": "weather",
+        "content": "Abito elegante estivo. Scarpe comode per prato e chianche."
+      }
+    ]
+  },
+  {
+    "id": "wed-2",
+    "weddingCode": "BEATRICE-LORENZO-2026",
+    "coupleNames": "Beatrice Conti & Lorenzo Ferrari",
+    "coupleEmail": "beatrice.lorenzo@admarketing.it",
+    "weddingDate": "2026-09-19",
+    "venue": "Masseria San Domenico",
+    "city": "Savelletri di Fasano (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Non vediamo l'ora di celebrare il nostro giorno più bello con voi in questa magnifica masseria fortificata tra gli ulivi secolari.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Formal Black Tie & Cocktail Dress",
+    "story": "Dal nord al sud, uniti dalla passione per la terra pugliese.",
+    "hotels": [
+      {
+        "id": "hotel-w2-1",
+        "name": "Masseria San Domenico (5★ Lusso)",
+        "stars": 5,
+        "address": "Strada Provinciale 90, Fasano (BR)",
+        "distanceToVenue": "Sede della cerimonia e ricevimento",
+        "negotiatedRate": 490,
+        "currency": "EUR",
+        "bookingDeadline": "2026-08-01",
+        "groupCode": "BEATRICE-LORENZO-2026",
+        "supplierId": "sup-masseria-san-domenico",
+        "websiteUrl": "https://www.masseriasandomenico.com/booking",
+        "bookingEngineType": "DIRECT_ENGINE",
+        "pricingManagedByAgency": true,
+        "negotiatedPerk": "Accesso gratuito alle piscine con acqua marina della talassoterapia.",
+        "roomTypes": [
+          {
+            "id": "rt-w2-1",
+            "name": "Camera Deluxe Storica",
+            "pricePerNight": 490,
+            "totalBlocked": 25,
+            "availableRooms": 10,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w2-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Aeroporto Bari Palese (BRI) ↔ Masseria San Domenico",
+        "origin": "Aeroporto di Bari Palese (BRI)",
+        "destination": "Masseria San Domenico, Savelletri",
+        "departureTime": "Ore 10:30, 14:00 e 18:30",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 6,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia",
+        "negotiatedPerk": "Cartello sposi nominativo al gate arrivi"
+      },
+      {
+        "id": "tr-w2-2",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Aeroporto Brindisi (BDS) ↔ Masseria San Domenico",
+        "origin": "Aeroporto di Brindisi (BDS)",
+        "destination": "Masseria San Domenico",
+        "departureTime": "Ore 11:00 e 16:30",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 4,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      },
+      {
+        "id": "tr-w2-3",
+        "type": "VENUE_SHUTTLE",
+        "title": "Navetta Notturna Cerimonia & Uliveto Storico",
+        "origin": "Masseria San Domenico",
+        "destination": "Hotel e B&B convenzionati Fasano / Monopoli",
+        "departureTime": "Ogni 30 min dalle 01:00 alle 04:30",
+        "vehicleType": "Minivan 8 posti continuo",
+        "capacity": 8,
+        "bookedSeats": 0,
+        "pricePerSeat": 0,
+        "isPaidByCouple": true,
+        "supplierId": "sup-ncc-puglia",
+        "negotiatedPerk": "Servizio navetta notturno continuativo offerto con affetto dagli Sposi"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w2-1",
+        "title": "Sunset Cruise & Degustazione Bollicine a Monopoli",
+        "category": "BOAT_TOUR",
+        "eventDate": "2026-09-18",
+        "startTime": "18:00 - 20:30",
+        "durationHours": 2.5,
+        "meetingPoint": "Porto Antico di Monopoli",
+        "pricePerPerson": 90,
+        "isHostSponsored": false,
+        "maxParticipants": 24,
+        "bookedParticipants": 14,
+        "dressCode": "Resort Chic",
+        "description": "Crociera al tramonto lungo la costa merlata di Monopoli con calici di spumante pugliese Metodo Classico e stuzzichini locali.",
+        "supplierId": "sup-boat-polignano",
+        "negotiatedPerk": "Brindisi speciale con calici riservati e musica lounge di sottofondo"
+      },
+      {
+        "id": "exp-w2-2",
+        "title": "Cena di Gala di Benvenuto sotto le Luminarie Salentine",
+        "category": "WELCOME_PARTY",
+        "eventDate": "2026-09-18",
+        "startTime": "20:00 - 23:30",
+        "durationHours": 3.5,
+        "meetingPoint": "Corte Storica Masseria San Domenico",
+        "pricePerPerson": 0,
+        "isHostSponsored": true,
+        "maxParticipants": 90,
+        "bookedParticipants": 36,
+        "dressCode": "Cocktail Dress",
+        "description": "Cena placée sotto le celebri luminarie di festa patronale con carretto dei gelati e grigliata di pesce e carni della Valle d'Itria.",
+        "supplierId": "sup-masseria-san-domenico"
+      },
+      {
+        "id": "exp-w2-3",
+        "title": "Wine Tasting Primitivo & Susumaniello in Bottaia Storica",
+        "category": "WINE_TASTING",
+        "eventDate": "2026-09-20",
+        "startTime": "11:00 - 13:30",
+        "durationHours": 2.5,
+        "meetingPoint": "Cantina Storica della Valle d'Itria",
+        "pricePerPerson": 65,
+        "isHostSponsored": false,
+        "maxParticipants": 30,
+        "bookedParticipants": 10,
+        "dressCode": "Casual",
+        "description": "Visita guidata tra le vigne e le botti in rovere con degustazione di 4 etichette selezionate abbinate a capocollo di Martina Franca.",
+        "supplierId": "sup-masseria-san-domenico"
+      }
+    ],
+    "extraServices": [],
+    "guests": [
+      {
+        "id": "g-w2-1",
+        "name": "Jean-Pierre Laurent",
+        "email": "jp.laurent@paris.fr",
+        "phone": "+33 6 12 34 56 78",
+        "country": "Francia",
+        "flag": "🇫🇷",
+        "hotelBooked": "Masseria San Domenico (5★ Lusso)",
+        "roomType": "Camera Deluxe Storica",
+        "transferBooked": "Navetta Aeroporto Bari Palese (BRI)",
+        "flight": "Air France AF1240",
+        "experiences": [
+          "Sunset Cruise & Degustazione Bollicine a Monopoli"
+        ],
+        "extraServices": [],
+        "diet": "Nessuna",
+        "status": "CONFIRMED",
+        "totalAmountDue": 125,
+        "paymentStatus": "PAID",
+        "registeredAt": "2026-08-20"
+      }
+    ],
+    "schedule": [
+      {
+        "id": "ev-1",
+        "time": "17:30",
+        "title": "Cerimonia di Nozze",
+        "location": "Masseria San Domenico",
+        "description": "Rito nuziale"
+      }
+    ],
+    "secondaryInfo": []
+  },
+  {
+    "id": "wed-3",
+    "weddingCode": "GIULIA-MARCO-2026",
+    "coupleNames": "Giulia Moretti & Marco Santoro",
+    "coupleEmail": "giulia.marco@admarketing.it",
+    "weddingDate": "2026-09-26",
+    "venue": "Masseria Torre Coccaro",
+    "city": "Fasano (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Benvenuti nel portale ospiti ufficiale per il nostro matrimonio a Torre Coccaro tra gli ulivi e il mare.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Summer Chic",
+    "story": "Una favola estiva tra mare, sole e buon cibo.",
+    "hotels": [
+      {
+        "id": "hotel-w3-1",
+        "name": "Masseria Torre Coccaro (5★)",
+        "stars": 5,
+        "address": "C.da Coccaro 8, Fasano (BR)",
+        "distanceToVenue": "Sede della cerimonia e ricevimento",
+        "negotiatedRate": 460,
+        "currency": "EUR",
+        "bookingDeadline": "2026-08-15",
+        "groupCode": "GIULIA-MARCO-2026",
+        "supplierId": "sup-masseria-torre",
+        "websiteUrl": "https://www.torrecoccaro.com/booking",
+        "bookingEngineType": "DIRECT_ENGINE",
+        "pricingManagedByAgency": true,
+        "negotiatedPerk": "Tariffa speciale con accesso privato al Coccaro Beach Club.",
+        "roomTypes": [
+          {
+            "id": "rt-w3-1",
+            "name": "Suite Torre Storica",
+            "pricePerNight": 460,
+            "totalBlocked": 20,
+            "availableRooms": 8,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w3-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Shuttle Bus Aeroporto Bari (BRI) ↔ Masseria Torre Coccaro",
+        "origin": "Aeroporto Bari Palese (BRI)",
+        "destination": "Masseria Torre Coccaro, Fasano",
+        "departureTime": "Ore 11:30 e 17:00",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 5,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      },
+      {
+        "id": "tr-w3-2",
+        "type": "PRIVATE_NCC",
+        "title": "Transfer Privato Esclusivo NCC Mercedes Classe V Luxury",
+        "origin": "Aeroporti Bari o Brindisi",
+        "destination": "Masseria Torre Coccaro",
+        "departureTime": "Fascia oraria concordata",
+        "vehicleType": "Mercedes Classe V",
+        "capacity": 7,
+        "bookedSeats": 0,
+        "pricePerSeat": 170,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w3-1",
+        "title": "Sunset Beach Party al Coccaro Beach Club",
+        "category": "WELCOME_PARTY",
+        "eventDate": "2026-09-25",
+        "startTime": "18:30 - 23:00",
+        "durationHours": 4.5,
+        "meetingPoint": "Coccaro Beach Club, Savelletri",
+        "pricePerPerson": 0,
+        "isHostSponsored": true,
+        "maxParticipants": 100,
+        "bookedParticipants": 45,
+        "dressCode": "Beach Elegance",
+        "description": "Festa sui lettini in riva al mare con aperitivo pugliese, frittini caldi al momento e DJ set al calar del sole.",
+        "supplierId": "sup-masseria-torre"
+      },
+      {
+        "id": "exp-w3-2",
+        "title": "Tour in Barca a Vela lungo la Costa dei Trulli",
+        "category": "BOAT_TOUR",
+        "eventDate": "2026-09-27",
+        "startTime": "10:00 - 13:30",
+        "durationHours": 3.5,
+        "meetingPoint": "Porto di Villanova (Ostuni)",
+        "pricePerPerson": 80,
+        "isHostSponsored": false,
+        "maxParticipants": 20,
+        "bookedParticipants": 8,
+        "dressCode": "Costume da bagno & Telo mare",
+        "description": "Veleggiata costiera con soste bagno nelle calette incontaminate della costa adriatica pugliese.",
+        "supplierId": "sup-boat-polignano"
+      }
+    ],
+    "extraServices": [],
+    "guests": [
+      {
+        "id": "g-w3-1",
+        "name": "Oliver & Charlotte Davies",
+        "email": "oliver.davies@london.co.uk",
+        "phone": "+44 20 7946 0991",
+        "country": "Regno Unito",
+        "flag": "🇬🇧",
+        "hotelBooked": "Masseria Torre Coccaro (5★)",
+        "roomType": "Suite Torre Storica",
+        "transferBooked": "Shuttle Bus Aeroporto Bari (BRI)",
+        "flight": "British Airways BA548",
+        "experiences": [
+          "Sunset Beach Party al Coccaro Beach Club"
+        ],
+        "extraServices": [],
+        "diet": "Vegetariano",
+        "status": "CONFIRMED",
+        "totalAmountDue": 35,
+        "paymentStatus": "PAID",
+        "registeredAt": "2026-08-25"
+      }
+    ],
+    "schedule": [],
+    "secondaryInfo": []
+  },
+  {
+    "id": "wed-4",
+    "weddingCode": "FRANCESCA-DAVIDE-2026",
+    "coupleNames": "Francesca Romano & Davide Esposito",
+    "coupleEmail": "francesca.davide@admarketing.it",
+    "weddingDate": "2026-10-03",
+    "venue": "Castello Monaci",
+    "city": "Salice Salentino (LE)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Festeggiamo insieme nel suggestivo scenario di Castello Monaci nel Salento tra vigneti e sale nobiliari.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Formal Nobility Chic",
+    "story": "Il vino buono, il castello e la musica del sud.",
+    "hotels": [
+      {
+        "id": "hotel-w4-1",
+        "name": "Le Scuderie di Castello Monaci Resort (4★ S)",
+        "stars": 4,
+        "address": "Contrada Monaci, Salice Salentino (LE)",
+        "distanceToVenue": "Nel complesso del Castello",
+        "negotiatedRate": 290,
+        "currency": "EUR",
+        "bookingDeadline": "2026-09-01",
+        "groupCode": "FRANCESCA-DAVIDE-2026",
+        "supplierId": "sup-castello-monaci",
+        "pricingManagedByAgency": true,
+        "roomTypes": [
+          {
+            "id": "rt-w4-1",
+            "name": "Camera Matrimoniale Borgo",
+            "pricePerNight": 290,
+            "totalBlocked": 20,
+            "availableRooms": 10,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w4-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Aeroporto Brindisi (BDS) ↔ Castello Monaci",
+        "origin": "Aeroporto di Brindisi Papola Casale (BDS)",
+        "destination": "Castello Monaci, Salice Salentino",
+        "departureTime": "Ore 12:00 e 17:30",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 4,
+        "pricePerSeat": 30,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w4-1",
+        "title": "Visita al Museo del Vino & Degustazione Salice Salentino DOC",
+        "category": "WINE_TASTING",
+        "eventDate": "2026-10-02",
+        "startTime": "17:00 - 19:30",
+        "durationHours": 2.5,
+        "meetingPoint": "Corte delle Botti di Castello Monaci",
+        "pricePerPerson": 50,
+        "isHostSponsored": false,
+        "maxParticipants": 35,
+        "bookedParticipants": 15,
+        "dressCode": "Casual Elegante",
+        "description": "Visita esclusiva al museo enologico del castello e degustazione di 3 grandi vini salentini con prodotti da forno tipici.",
+        "supplierId": "sup-castello-monaci"
+      }
+    ],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [],
+    "secondaryInfo": []
+  },
+  {
+    "id": "wed-5",
+    "weddingCode": "ELENA-ANDREA-2026",
+    "coupleNames": "Elena Bianchi & Andrea Ricci",
+    "coupleEmail": "elena.andrea@admarketing.it",
+    "weddingDate": "2026-10-10",
+    "venue": "Masseria Moroseta",
+    "city": "Ostuni (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Benvenuti nella Città Bianca di Ostuni per il nostro matrimonio a Masseria Moroseta.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Minimal Chic & Linen",
+    "story": "Minimalismo, design e autenticità pugliese.",
+    "hotels": [
+      {
+        "id": "hotel-w5-1",
+        "name": "Masseria Moroseta Boutique Hotel (5★)",
+        "stars": 5,
+        "address": "Contrada Lamacavallo, Ostuni (BR)",
+        "distanceToVenue": "Sede delle nozze",
+        "negotiatedRate": 480,
+        "currency": "EUR",
+        "bookingDeadline": "2026-09-10",
+        "groupCode": "ELENA-ANDREA-2026",
+        "supplierId": "sup-moroseta",
+        "pricingManagedByAgency": true,
+        "roomTypes": [
+          {
+            "id": "rt-w5-1",
+            "name": "Suite Giardino Privato",
+            "pricePerNight": 480,
+            "totalBlocked": 12,
+            "availableRooms": 5,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w5-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Brindisi (BDS) ↔ Masseria Moroseta Ostuni",
+        "origin": "Aeroporto di Brindisi (BDS)",
+        "destination": "Masseria Moroseta, Ostuni",
+        "departureTime": "Ore 11:30 e 16:00",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 3,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w5-1",
+        "title": "Cena Biologica nell'Uliveto con Chef di Moroseta",
+        "category": "WELCOME_PARTY",
+        "eventDate": "2026-10-09",
+        "startTime": "19:30 - 23:00",
+        "durationHours": 3.5,
+        "meetingPoint": "Uliveto di Masseria Moroseta",
+        "pricePerPerson": 0,
+        "isHostSponsored": true,
+        "maxParticipants": 40,
+        "bookedParticipants": 20,
+        "dressCode": "Lino Bianco & Toni Terra",
+        "description": "Tavolata conviviale tra gli ulivi secolari con menù 100% biologico a km 0, vini naturali pugliesi e musica acustica.",
+        "supplierId": "sup-moroseta"
+      }
+    ],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [],
+    "secondaryInfo": []
+  },
+  {
+    "id": "wed-6",
+    "weddingCode": "MARTINA-SIMONE-2026",
+    "coupleNames": "Martina Gialli & Simone Neri",
+    "coupleEmail": "martina.simone@admarketing.it",
+    "weddingDate": "2026-10-17",
+    "venue": "Borgo San Marco",
+    "city": "Fasano (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Un weekend di festa e gioia a Borgo San Marco tra gli uliveti e il mare.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Elegante",
+    "story": "Amici da sempre, sposi oggi.",
+    "hotels": [
+      {
+        "id": "hotel-w6-1",
+        "name": "Borgo San Marco Dimora Storica (4★ S)",
+        "stars": 4,
+        "address": "Contrada Sant'Angelo 33, Fasano (BR)",
+        "distanceToVenue": "Sede evento",
+        "negotiatedRate": 340,
+        "currency": "EUR",
+        "bookingDeadline": "2026-09-15",
+        "groupCode": "MARTINA-SIMONE-2026",
+        "supplierId": "sup-san-marco",
+        "pricingManagedByAgency": true,
+        "roomTypes": [
+          {
+            "id": "rt-w6-1",
+            "name": "Camera Deluxe Storica",
+            "pricePerNight": 340,
+            "totalBlocked": 15,
+            "availableRooms": 7,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w6-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Aeroporto Bari (BRI) ↔ Borgo San Marco",
+        "origin": "Aeroporto di Bari (BRI)",
+        "destination": "Borgo San Marco, Fasano",
+        "departureTime": "Ore 12:00 e 18:00",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 2,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w6-1",
+        "title": "Degustazione Panigacci & Vini Pugliesi al Tramonto",
+        "category": "WINE_TASTING",
+        "eventDate": "2026-10-16",
+        "startTime": "18:00 - 20:30",
+        "durationHours": 2.5,
+        "meetingPoint": "Chiostro delle Erbe di Borgo San Marco",
+        "pricePerPerson": 45,
+        "isHostSponsored": false,
+        "maxParticipants": 30,
+        "bookedParticipants": 10,
+        "dressCode": "Casual Chic",
+        "description": "Aperitivo al tramonto con degustazione di prodotti artigianali dell'orto e calici di Locorotondo DOC.",
+        "supplierId": "sup-san-marco"
+      }
+    ],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [],
+    "secondaryInfo": []
+  },
+  {
+    "id": "wed-7",
+    "weddingCode": "SILVIA-ALESSANDRO-2026",
+    "coupleNames": "Silvia Bruno & Alessandro Moretti",
+    "coupleEmail": "silvia.alessandro@admarketing.it",
+    "weddingDate": "2026-10-24",
+    "venue": "Masseria Cervarolo",
+    "city": "Ostuni (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Trulli, masserie e grande festa per il nostro giorno speciale nella Valle d'Itria.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Formal",
+    "story": "Tra i trulli della valle d'itria.",
+    "hotels": [
+      {
+        "id": "hotel-w7-1",
+        "name": "Masseria Cervarolo & Trulli Storici (4★ S)",
+        "stars": 4,
+        "address": "Contrada Cervarolo, Ostuni (BR)",
+        "distanceToVenue": "Sede cerimonia",
+        "negotiatedRate": 360,
+        "currency": "EUR",
+        "bookingDeadline": "2026-09-20",
+        "groupCode": "SILVIA-ALESSANDRO-2026",
+        "supplierId": "sup-cervarolo",
+        "pricingManagedByAgency": true,
+        "roomTypes": [
+          {
+            "id": "rt-w7-1",
+            "name": "Suite nel Trullo Storico",
+            "pricePerNight": 360,
+            "totalBlocked": 18,
+            "availableRooms": 6,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w7-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Aeroporto Brindisi (BDS) ↔ Masseria Cervarolo",
+        "origin": "Aeroporto di Brindisi (BDS)",
+        "destination": "Masseria Cervarolo, Ostuni",
+        "departureTime": "Ore 11:00 e 17:00",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 2,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w7-1",
+        "title": "Festa sotto i Trulli con Pizzica e Taralli Caldi",
+        "category": "PIZZICA_NIGHT",
+        "eventDate": "2026-10-23",
+        "startTime": "19:00 - 23:00",
+        "durationHours": 4,
+        "meetingPoint": "Piazzale dei Trulli di Masseria Cervarolo",
+        "pricePerPerson": 0,
+        "isHostSponsored": true,
+        "maxParticipants": 70,
+        "bookedParticipants": 25,
+        "dressCode": "Casual Salentino",
+        "description": "Serata di benvenuto sotto i coni dei trulli storici illuminati, tamburelli salentini e taralli caldi appena sfornati.",
+        "supplierId": "sup-cervarolo"
+      }
+    ],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [],
+    "secondaryInfo": []
+  },
+  {
+    "id": "wed-8",
+    "weddingCode": "CATERINA-FEDERICO-2026",
+    "coupleNames": "Caterina Vitale & Federico Gallo",
+    "coupleEmail": "caterina.federico@admarketing.it",
+    "weddingDate": "2026-11-01",
+    "venue": "Masseria Cimino",
+    "city": "Fasano (BR)",
+    "country": "Italia",
+    "bannerImage": "/src/assets/images/wedding_concierge_hero_1791309110090.jpg",
+    "welcomeMessage": "Vi diamo il benvenuto al nostro matrimonio vista mare in Puglia.",
+    "currency": "EUR",
+    "conciergeEmail": "info@admarketing.it",
+    "conciergePhone": "+39 099 8887766",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "couplePassword": "password123",
+    "dressCode": "Cocktail Attire",
+    "story": "Il coronamento di un sogno sul litorale adriatico.",
+    "hotels": [
+      {
+        "id": "hotel-w8-1",
+        "name": "Masseria Cimino Country House (4★)",
+        "stars": 4,
+        "address": "C.da San Domenico, Savelletri di Fasano (BR)",
+        "distanceToVenue": "Sede nozze",
+        "negotiatedRate": 310,
+        "currency": "EUR",
+        "bookingDeadline": "2026-09-30",
+        "groupCode": "CATERINA-FEDERICO-2026",
+        "supplierId": "sup-cimino",
+        "pricingManagedByAgency": true,
+        "roomTypes": [
+          {
+            "id": "rt-w8-1",
+            "name": "Camera Torre Vista Mare",
+            "pricePerNight": 310,
+            "totalBlocked": 15,
+            "availableRooms": 8,
+            "maxOccupancy": 2
+          }
+        ]
+      }
+    ],
+    "transfers": [
+      {
+        "id": "tr-w8-1",
+        "type": "AIRPORT_SHUTTLE",
+        "title": "Navetta Aeroporto Bari (BRI) ↔ Masseria Cimino",
+        "origin": "Aeroporto di Bari (BRI)",
+        "destination": "Masseria Cimino, Savelletri",
+        "departureTime": "Ore 11:30 e 16:30",
+        "vehicleType": "Mercedes Sprinter VIP 16 posti",
+        "capacity": 16,
+        "bookedSeats": 0,
+        "pricePerSeat": 35,
+        "isPaidByCouple": false,
+        "supplierId": "sup-ncc-puglia"
+      }
+    ],
+    "experiences": [
+      {
+        "id": "exp-w8-1",
+        "title": "Passeggiata Archeologica a Egnazia & Calici al Tramonto",
+        "category": "OIL_TOUR",
+        "eventDate": "2026-10-31",
+        "startTime": "16:00 - 18:30",
+        "durationHours": 2.5,
+        "meetingPoint": "Parco Archeologico di Egnazia",
+        "pricePerPerson": 40,
+        "isHostSponsored": false,
+        "maxParticipants": 25,
+        "bookedParticipants": 5,
+        "dressCode": "Scarpe comode",
+        "description": "Visita guidata alle rovine dell'antica città romana di Gnathia sul mare e brindisi finale al tramonto.",
+        "supplierId": "sup-cimino"
+      }
+    ],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [],
+    "secondaryInfo": []
+  }
+]

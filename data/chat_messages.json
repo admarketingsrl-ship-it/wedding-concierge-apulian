@@ -1,0 +1,46 @@
+[
+  {
+    "id": "chat-1",
+    "weddingCode": "CHIARA-MATTEO-2026",
+    "guestName": "Aidan & Clodagh Murphy",
+    "guestEmail": "aidan.murphy@dublin.ie",
+    "sender": "valeria",
+    "text": "Buongiorno Aidan e Clodagh! Sono Valeria, la vostra assistente personale per il matrimonio di Chiara e Matteo a Borgo Egnazia. Sono qui per qualsiasi informazione su orari navette, prenotazioni o consigli sul vostro soggiorno in Puglia!",
+    "timestamp": "10:00",
+    "createdAt": "2026-09-01T10:00:00.000Z",
+    "readByAdmin": true
+  },
+  {
+    "id": "chat-2",
+    "weddingCode": "CHIARA-MATTEO-2026",
+    "guestName": "Aidan & Clodagh Murphy",
+    "guestEmail": "aidan.murphy@dublin.ie",
+    "sender": "guest",
+    "text": "Ciao Valeria, grazie mille! Il nostro volo Aer Lingus atterra a Bari alle 10:45. La navetta delle 11:30 ci aspetterà se c'è un piccolo ritardo nel ritiro bagagli?",
+    "timestamp": "10:14",
+    "createdAt": "2026-09-01T10:14:00.000Z",
+    "readByAdmin": true
+  },
+  {
+    "id": "chat-3",
+    "weddingCode": "CHIARA-MATTEO-2026",
+    "guestName": "Aidan & Clodagh Murphy",
+    "guestEmail": "aidan.murphy@dublin.ie",
+    "sender": "couple",
+    "text": "Carissimi Aidan e Clodagh, non vediamo l'ora di abbracciarvi qui in Puglia! Se avete bisogno di qualsiasi cosa chiedete pure a Valeria. Ci vediamo prestissimo!",
+    "timestamp": "10:18",
+    "createdAt": "2026-09-01T10:18:00.000Z",
+    "readByAdmin": true
+  },
+  {
+    "id": "chat-4",
+    "weddingCode": "CHIARA-MATTEO-2026",
+    "guestName": "Aidan & Clodagh Murphy",
+    "guestEmail": "aidan.murphy@dublin.ie",
+    "sender": "valeria",
+    "text": "Assolutamente sì! Il nostro autista Pasquale monitora il vostro volo in tempo reale sul tabellone aeroportuale. Vi aspetterà all'uscita con il cartello con il vostro nome. Sarete comodissimi!",
+    "timestamp": "10:20",
+    "createdAt": "2026-09-01T10:20:00.000Z",
+    "readByAdmin": true
+  }
+]

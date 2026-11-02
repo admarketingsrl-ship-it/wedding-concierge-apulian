@@ -1,0 +1,112 @@
+[
+  {
+    "id": "log-1792499007789-0ixi",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_DELETED",
+    "entityType": "WEDDING",
+    "entityTitle": "Test Couple",
+    "details": "Eliminato matrimonio codice TEST-2026",
+    "timestamp": "2026-10-20T12:23:27.789Z"
+  },
+  {
+    "id": "log-1792498999885-cp6s",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_UPDATED",
+    "entityType": "WEDDING",
+    "entityTitle": "Test Couple",
+    "details": "Aggiornati dettagli matrimonio TEST-2026",
+    "timestamp": "2026-10-20T12:23:19.885Z"
+  },
+  {
+    "id": "log-1792053618289-n50e",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_DELETED",
+    "entityType": "WEDDING",
+    "entityTitle": "Marco & Valentina",
+    "details": "Eliminato matrimonio codice MARCO-VALE-2026",
+    "timestamp": "2026-10-15T08:40:18.289Z"
+  },
+  {
+    "id": "log-1792053609699-8on9",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_CREATED",
+    "entityType": "WEDDING",
+    "entityTitle": "Marco & Valentina",
+    "details": "Creato e attivato matrimonio con codice nozze: MARCO-VALE-2026. Luogo: Masseria San Domenico",
+    "timestamp": "2026-10-15T08:40:09.699Z"
+  },
+  {
+    "id": "log-1792053144911-mkcx",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_CREATED",
+    "entityType": "WEDDING",
+    "entityTitle": "Test Sposi & Test Sposa",
+    "details": "Creato e attivato matrimonio con codice nozze: TEST-SPOSI-2026. Luogo: Borgo Egnazia",
+    "timestamp": "2026-10-15T08:32:24.911Z"
+  },
+  {
+    "id": "log-1792046973418-0h0l",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "domenicoantonacci@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a domenicoantonacci@gmail.com: \"Test Interno Pannello Admin - AD Marketing\"",
+    "timestamp": "2026-10-15T06:49:33.418Z"
+  },
+  {
+    "id": "log-1792018574207-e75f",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_CREATED",
+    "entityType": "WEDDING",
+    "entityTitle": "Marco & Giulia",
+    "details": "Creato e attivato matrimonio con codice nozze: MARCO-GIULIA-2026. Luogo: Puglia",
+    "timestamp": "2026-10-14T22:56:14.207Z"
+  },
+  {
+    "id": "log-1",
+    "actorName": "Domenico Antonacci",
+    "actorRole": "Amministratore",
+    "actionType": "WEDDING_INIT",
+    "entityType": "WEDDING",
+    "entityTitle": "Sophia Rossi & Liam O'Connor (SOPHIA-LIAM-2026)",
+    "details": "Inizializzazione portale nozze con masserie, transfer NCC ed esperienze",
+    "timestamp": "2026-10-11T22:55:28.730Z"
+  },
+  {
+    "id": "log-2",
+    "actorName": "Valeria Concierge",
+    "actorRole": "Concierge",
+    "actionType": "EMAIL_SENT",
+    "entityType": "GUEST",
+    "entityTitle": "Eleanor & Jonathan Vance",
+    "details": "Inviata email di benvenuto e riepilogo transfer aeroporto Bari",
+    "timestamp": "2026-10-14T10:55:28.730Z"
+  },
+  {
+    "id": "log-3",
+    "actorName": "Marco De Santis",
+    "actorRole": "Logistica",
+    "actionType": "TRANSFER_ASSIGN",
+    "entityType": "TRANSFER",
+    "entityTitle": "Shuttle MXP -> Fasano",
+    "details": "Confermati 4 posti per ospiti arrivo con volo Delta DL112",
+    "timestamp": "2026-10-14T18:55:28.730Z"
+  },
+  {
+    "id": "log-4",
+    "actorName": "Giulia Moretti",
+    "actorRole": "Hospitality",
+    "actionType": "ROOM_BLOCK_CONFIRM",
+    "entityType": "HOTEL",
+    "entityTitle": "Borgo Egnazia Resort & Spa",
+    "details": "Opzionate ulteriori 5 camere deluxe con tariffa concordata admarketing",
+    "timestamp": "2026-10-14T21:55:28.730Z"
+  }
+]
