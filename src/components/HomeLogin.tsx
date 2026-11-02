@@ -183,7 +183,6 @@ export default function HomeLogin({
     // Rimuovi provider: 'google' | 'apple' | 'email' poiché ora solo email è consentita
     const provider = 'email';
     
-    // ... logic ...
     setGuestError('');
     const cleanCode = weddingCode.trim().toUpperCase();
     
@@ -194,7 +193,7 @@ export default function HomeLogin({
 
     let found = weddings.find(w => w.weddingCode.toUpperCase() === cleanCode);
     if (!found) {
-      // Lookup dinamico direttamente su Firestore (permette l'accesso immediato da qualsiasi smartphone/browser)
+      // Lookup dinamico direttamente su Firestore
       try {
         const weddingFromDb = await fetchWeddingByCodeFromFirestore(cleanCode);
         if (weddingFromDb) {
@@ -213,18 +212,39 @@ export default function HomeLogin({
       return;
     }
 
-    const finalName = customData?.name || guestName.trim();
-    const finalEmail = customData?.email || guestEmail.trim() || 'guest@example.com';
-    const finalPhone = guestPhone.trim();
+    const inputName = guestName.trim();
+    const inputEmail = guestEmail.trim().toLowerCase();
+    const inputPhone = guestPhone.trim();
 
-    if (!finalName) {
-      setGuestError('Inserisci il tuo nome e cognome per entrare.');
-      return;
-    }
+    // Cerca se l'ospite esiste già per questo matrimonio
+    const existingGuest = (found.guests || []).find(g => 
+      (inputEmail && g.email && g.email.toLowerCase().trim() === inputEmail) ||
+      (inputPhone && g.phone && g.phone.trim() === inputPhone)
+    );
 
-    if (!finalPhone) {
-      setGuestError('Inserisci il tuo numero di cellulare per continuare.');
-      return;
+    let finalName = inputName;
+    let finalEmail = inputEmail;
+    let finalPhone = inputPhone;
+
+    if (existingGuest) {
+      finalName = existingGuest.name;
+      finalEmail = existingGuest.email;
+      finalPhone = existingGuest.phone;
+    } else {
+      // Nuovo ospite: campi obbligatori
+      if (!inputName) {
+        setGuestError('Inserisci il tuo nome e cognome per entrare.');
+        return;
+      }
+      if (!inputPhone) {
+        setGuestError('Inserisci il tuo numero di cellulare per continuare (obbligatorio per il primo accesso).');
+        return;
+      }
+      if (!inputEmail) {
+        // Opzionale se usa solo telefono? Ma il sistema usa email come ID. Richiediamola.
+        setGuestError('Inserisci la tua email per continuare.');
+        return;
+      }
     }
 
     onGuestLogin({
