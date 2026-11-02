@@ -53,6 +53,8 @@ import heroBanner from '../assets/images/wedding_concierge_hero_1791309110090.jp
 import hotelSuiteImg from '../assets/images/wedding_hotel_suite_1791309120679.jpg';
 import boatTourImg from '../assets/images/wedding_boat_experience_1791309131765.jpg';
 import { compressImageFile } from '../lib/imageCompressor';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface CouplePortalProps {
   weddingData: WeddingData;
@@ -399,6 +401,139 @@ export default function CouplePortal({
 
     onUpdateWedding(updatedWedding);
     triggerToast(customMessage || 'Modifiche salvate con successo! Visibili immediatamente agli ospiti.');
+  };
+
+  const [isExportingSheets, setIsExportingSheets] = useState(false);
+
+  const handleExportToGoogleSheets = async () => {
+    try {
+      setIsExportingSheets(true);
+      triggerToast('Autenticazione Google e creazione Foglio in corso...');
+
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const accessToken = credential?.accessToken;
+
+      if (!accessToken) {
+        throw new Error('Impossibile ottenere il token di accesso Google.');
+      }
+
+      const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          properties: {
+            title: `Elenco Sposi & Ristorante - ${coupleNames} (${weddingData.weddingCode})`
+          }
+        })
+      });
+
+      if (!createRes.ok) {
+        throw new Error('Errore nella creazione del Google Sheet.');
+      }
+
+      const sheetData = await createRes.json();
+      const spreadsheetId = sheetData.spreadsheetId;
+      const spreadsheetUrl = sheetData.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+
+      const rows = [
+        [
+          'Nome Ospite',
+          'Email',
+          'Telefono',
+          'Paese',
+          'Nucleo Familiare',
+          'Accompagnatori',
+          'Hotel Prenotato',
+          'Tipo Camera',
+          'Transfer',
+          'Esperienze & Servizi',
+          'Dieta / Intolleranze / Allergie',
+          'Stato RSVP'
+        ],
+        ...weddingData.guests.map(g => [
+          g.name,
+          g.email,
+          g.phone || '',
+          g.country || '',
+          g.familyName || 'Nucleo Principale (1)',
+          g.companions ? g.companions.map((c: any) => `${c.name} (${c.relationship})`).join(', ') : '',
+          g.hotelBooked || 'Nessuno',
+          g.roomType || '',
+          g.transferBooked || 'Autonomo',
+          g.serviceBookings ? Object.entries(g.serviceBookings).map(([k, v]: [string, any]) => `${k} (x${v.quantity})`).join('; ') : '',
+          [g.diet, g.specialNeeds, g.companions?.map((c: any) => c.dietary).filter(Boolean).join('; ')].filter(Boolean).join(' | ') || 'Nessuna restrizione',
+          g.status
+        ])
+      ];
+
+      const updateRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          range: 'Sheet1!A1',
+          majorDimension: 'ROWS',
+          values: rows
+        })
+      });
+
+      if (!updateRes.ok) {
+        throw new Error('Errore durante la scrittura dei dati nel foglio.');
+      }
+
+      triggerToast('Foglio Google creato e popolato con successo!');
+      window.open(spreadsheetUrl, '_blank');
+    } catch (err: any) {
+      console.error('Errore export Google Sheets:', err);
+      triggerToast(`Errore export Google Sheets: ${err?.message || 'Riprova più tardi'}`);
+    } finally {
+      setIsExportingSheets(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    try {
+      const headers = ['Nome Ospite', 'Email', 'Telefono', 'Paese', 'Nucleo Familiare', 'Accompagnatori', 'Hotel', 'Camera', 'Transfer', 'Servizi', 'Dieta / Intolleranze', 'Stato RSVP'];
+      const csvRows = [
+        headers.join(','),
+        ...weddingData.guests.map(g => [
+          `"${g.name}"`,
+          `"${g.email}"`,
+          `"${g.phone || ''}"`,
+          `"${g.country || ''}"`,
+          `"${g.familyName || 'Nucleo Principale'}"`,
+          `"${g.companions ? g.companions.map((c: any) => c.name).join(' - ') : ''}"`,
+          `"${g.hotelBooked || 'Nessuno'}"`,
+          `"${g.roomType || ''}"`,
+          `"${g.transferBooked || 'Autonomo'}"`,
+          `"${g.serviceBookings ? Object.keys(g.serviceBookings).join('; ') : ''}"`,
+          `"${[g.diet, g.specialNeeds].filter(Boolean).join(' | ')}"`,
+          `"${g.status}"`
+        ].join(','))
+      ];
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Elenco_Sposi_${weddingData.weddingCode}_Ristorante.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      triggerToast('File CSV esportato con successo!');
+    } catch (e) {
+      triggerToast('Errore durante l\'esportazione CSV');
+    }
   };
 
   // Gestione Upload File Immagine Locale per Galleria con Compressione Ottimizzata (< 120KB)
@@ -2349,6 +2484,39 @@ ${coupleNames} ❤️`;
                 <div className="text-[11px] font-semibold text-rose-700 mt-0.5">
                   Diete Speciali / Allergie
                 </div>
+              </div>
+            </div>
+
+            {/* Esportazione Elenco Sposi per il Ristorante (Google Sheets & CSV) */}
+            <div className="p-4 bg-stone-750 text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                  <ExternalLink className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold">Esporta Elenco Sposi (Nucleo Familiare &amp; Intolleranze)</div>
+                  <p className="text-xs text-neutral-300">Genera un Foglio Google o scarica il file CSV completo da consegnare al ristorante o allo staff del banchetto.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleExportToGoogleSheets}
+                  disabled={isExportingSheets}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all disabled:opacity-50"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>{isExportingSheets ? 'Creazione Google Sheet...' : 'Esporta in Google Fogli'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="px-4 py-2.5 rounded-xl bg-stone-600 hover:bg-stone-500 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all"
+                >
+                  <FileText className="w-4 h-4 text-amber-400" />
+                  <span>Scarica CSV (Excel)</span>
+                </button>
               </div>
             </div>
 
