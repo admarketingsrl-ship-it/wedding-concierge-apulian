@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Building2, 
   Users, 
@@ -150,6 +150,8 @@ export default function AdminPanel({
   const [alertActionToast, setAlertActionToast] = useState<string | null>(null);
   const [wishFilterScope, setWishFilterScope] = useState<'selected' | 'all'>('all');
   const [wishSearchQuery, setWishSearchQuery] = useState('');
+  const [wishStatusFilter, setWishStatusFilter] = useState<'ALL' | 'RECEIVED' | 'PROPOSAL_READY' | 'CONFIRMED'>('ALL');
+  const [wishSelectedWeddingCode, setWishSelectedWeddingCode] = useState<string>('ALL');
   const [showAddWishModal, setShowAddWishModal] = useState(false);
   const [newWishForm, setNewWishForm] = useState<{
     weddingCode: string;
@@ -1200,15 +1202,66 @@ export default function AdminPanel({
     document.body.removeChild(link);
   };
 
+  // Unifica i desideri da wishRequests con qualsiasi segnalazione GUEST_WISH presente nelle notifiche dei matrimoni
+  const consolidatedWishRequests = useMemo(() => {
+    const map = new Map<string, TouristWishRequest>();
+
+    // 1. Aggiungi tutti i wishRequests registrati
+    (wishRequests || []).forEach(w => {
+      if (w.id) map.set(w.id, w);
+    });
+
+    // 2. Ispeziona le notifiche di tutti i matrimoni per unificare qualsiasi segnalazione GUEST_WISH
+    (weddings || []).forEach(w => {
+      (w.notifications || []).forEach(n => {
+        if (n.source === 'GUEST_WISH') {
+          const alreadyExists = Array.from(map.values()).some(existing => 
+            existing.id === n.id || 
+            (existing.title && n.title && (
+              existing.title.toLowerCase().trim() === n.title.toLowerCase().trim() ||
+              n.title.toLowerCase().includes(existing.title.toLowerCase())
+            ))
+          );
+
+          if (!alreadyExists) {
+            const cleanTitle = n.title.replace(/^Nuov[ao] (Richiesta )?Desiderio( Ospite)?:\s*/i, '').trim();
+            const synthWish: TouristWishRequest = {
+              id: n.id || `wish-from-notif-${Date.now()}`,
+              weddingCode: n.weddingCode || w.weddingCode,
+              guestName: (n.authorName || 'Ospite').replace(/\s*\(Ospite\)$/i, ''),
+              guestEmail: (w.guests && w.guests.length > 0 ? w.guests[0].email : '') || 'ospite@matrimonio.it',
+              guestPhone: (w.guests && w.guests.length > 0 ? w.guests[0].phone : '') || '',
+              title: cleanTitle || n.title,
+              description: n.description || 'Richiesta speciale registrata nel riassunto nozze.',
+              preferredDate: w.weddingDate || '2026-09-12',
+              participantsCount: 2,
+              budgetRange: '€150 - €300',
+              status: n.read ? 'CONFIRMED' : 'RECEIVED',
+              agencyNotes: `Sincronizzato da avviso matrimonio (${n.timestamp || 'Recente'}).`,
+              createdAt: n.timestamp || new Date().toISOString().substring(0, 10)
+            };
+            map.set(synthWish.id, synthWish);
+          }
+        }
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [wishRequests, weddings]);
+
   // Calcola tutte le segnalazioni (salvate + dinamiche in sospeso) per un matrimonio
   const getWeddingAlerts = (w: WeddingData): WeddingAlertNotification[] => {
     const customAlerts = (w.notifications || []).filter(n => !n.read);
     const alerts: WeddingAlertNotification[] = [...customAlerts];
 
-    // Desideri pendenti ricevuti per questo matrimonio
-    (wishRequests || [])
-      .filter(wr => wr.weddingCode === w.weddingCode && wr.status === 'RECEIVED')
-      .forEach(wr => {
+    // Desideri pendenti ricevuti per questo matrimonio (confronto normalizzato)
+    const wNorm = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+    (consolidatedWishRequests || [])
+      .filter((wr: TouristWishRequest) => {
+        const wrNorm = (wr.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+        return wrNorm === wNorm && wr.status === 'RECEIVED';
+      })
+      .forEach((wr: TouristWishRequest) => {
         if (!alerts.some(a => a.source === 'GUEST_WISH' && (a.id === wr.id || a.title.includes(wr.title)))) {
           alerts.push({
             id: `dyn-wish-${wr.id}`,
@@ -1330,8 +1383,9 @@ export default function AdminPanel({
 
     const nowTime = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     const isGuest = role === 'ospite';
+    const simAlertId = `sim-alert-${Date.now()}`;
     const sampleAlert: WeddingAlertNotification = isGuest ? {
-      id: `sim-alert-${Date.now()}`,
+      id: simAlertId,
       weddingCode: targetW.weddingCode,
       source: 'GUEST_WISH',
       authorName: 'Eleanor Vance (Ospite)',
@@ -1342,7 +1396,7 @@ export default function AdminPanel({
       read: false,
       actionTab: 'wishlist'
     } : {
-      id: `sim-alert-${Date.now()}`,
+      id: simAlertId,
       weddingCode: targetW.weddingCode,
       source: 'COUPLE_UPDATE',
       authorName: targetW.coupleNames,
@@ -1353,6 +1407,32 @@ export default function AdminPanel({
       read: false,
       actionTab: 'weddings'
     };
+
+    // Se è un desiderio ospite, sincronizzalo contemporaneamente anche nell'array dedicato dei desideri (wishRequests)
+    if (isGuest) {
+      const newSimulatedWish: TouristWishRequest = {
+        id: simAlertId,
+        weddingCode: targetW.weddingCode,
+        guestName: 'Eleanor Vance',
+        guestEmail: 'eleanor.vance@gmail.com',
+        guestPhone: '+1 312 555 0198',
+        title: 'Tour in Ape Calessino tra gli Ulivi',
+        description: 'L\'ospite desidera una visita guidata pomeridiana tra i trulli storici di Alberobello per 4 persone con degustazione di prodotti tipici.',
+        preferredDate: targetW.weddingDate || '2026-06-21',
+        participantsCount: 4,
+        budgetRange: '€180 - €280',
+        status: 'RECEIVED',
+        agencyNotes: 'Richiesta di test simulata direttamente dall\'amministrazione.',
+        createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
+      };
+      const updatedWishList = [newSimulatedWish, ...(wishRequests || []).filter(w => w.id !== simAlertId)];
+      onUpdateWishRequests(updatedWishList);
+      fetch('/api/wishes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSimulatedWish)
+      }).catch(() => {});
+    }
 
     const updatedWedding = {
       ...targetW,
@@ -1409,9 +1489,9 @@ export default function AdminPanel({
     { 
       id: 'wishlist', 
       label: 'Wishlist & Desideri Ospiti', 
-      subtitle: `${wishRequests.length} richieste pervenute`,
+      subtitle: `${consolidatedWishRequests.length} richieste pervenute`,
       icon: <Lightbulb className="w-5 h-5 text-amber-600" />,
-      badge: wishRequests.length > 0 ? wishRequests.length : undefined
+      badge: consolidatedWishRequests.length > 0 ? consolidatedWishRequests.length : undefined
     },
     { 
       id: 'chat', 
@@ -1882,7 +1962,13 @@ export default function AdminPanel({
                                     type="button"
                                     onClick={() => {
                                       setSelectedWeddingId(w.id);
-                                      if (a.actionTab) setActiveTab(a.actionTab as any);
+                                      if (a.actionTab === 'wishlist') {
+                                        setWishFilterScope('all');
+                                        setWishSelectedWeddingCode(w.weddingCode);
+                                        setActiveTab('wishlist');
+                                      } else if (a.actionTab) {
+                                        setActiveTab(a.actionTab as any);
+                                      }
                                     }}
                                     className="text-amber-900 hover:text-amber-950 font-bold text-[10px] flex items-center gap-1 hover:underline cursor-pointer"
                                   >
@@ -4692,7 +4778,7 @@ export default function AdminPanel({
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                 {/* Search input */}
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -4700,53 +4786,42 @@ export default function AdminPanel({
                     type="text"
                     value={wishSearchQuery}
                     onChange={(e) => setWishSearchQuery(e.target.value)}
-                    placeholder="Cerca per titolo, ospite o email..."
+                    placeholder="Cerca per titolo, ospite, email o codice..."
                     className="pl-8 pr-3 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl w-48 sm:w-60 focus:bg-white focus:outline-none"
                   />
                   {wishSearchQuery && (
                     <button
                       type="button"
                       onClick={() => setWishSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
 
-                {/* Scope selector */}
-                <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setWishFilterScope('selected')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      wishFilterScope === 'selected' 
-                        ? 'bg-white text-stone-900 shadow-2xs' 
-                        : 'text-stone-600 hover:text-stone-900'
-                    }`}
-                  >
-                    Solo {selectedWedding?.weddingCode || 'Selezionato'} ({
-                      wishRequests.filter(w => {
-                        const wCode = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
-                        const selCode = (selectedWedding?.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
-                        const activeGuestEmails = (selectedWedding?.guests || []).map(g => (g.email || '').trim().toLowerCase()).filter(Boolean);
-                        const activeGuestNames = (selectedWedding?.guests || []).map(g => (g.name || '').trim().toLowerCase()).filter(Boolean);
-                        return wCode === selCode || activeGuestEmails.includes((w.guestEmail || '').trim().toLowerCase()) || activeGuestNames.includes((w.guestName || '').trim().toLowerCase());
-                      }).length
-                    })
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setWishFilterScope('all')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      wishFilterScope === 'all' 
-                        ? 'bg-white text-stone-900 shadow-2xs' 
-                        : 'text-stone-600 hover:text-stone-900'
-                    }`}
-                  >
-                    Tutti i Matrimoni ({wishRequests.length})
-                  </button>
-                </div>
+                {/* Filtro Selettore Matrimonio */}
+                <select
+                  value={wishSelectedWeddingCode}
+                  onChange={(e) => {
+                    setWishSelectedWeddingCode(e.target.value);
+                  }}
+                  className="px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-stone-800 focus:bg-white focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">Tutti i Matrimoni ({consolidatedWishRequests.length})</option>
+                  {weddings.map(w => {
+                    const cTarget = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                    const count = consolidatedWishRequests.filter((cw: TouristWishRequest) => {
+                      const cItem = (cw.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                      return cItem === cTarget;
+                    }).length;
+                    return (
+                      <option key={w.id} value={w.weddingCode}>
+                        {w.coupleNames} ({w.weddingCode}) &bull; {count}
+                      </option>
+                    );
+                  })}
+                </select>
 
                 {/* Inserisci Desiderio Manuale */}
                 <button
@@ -4760,13 +4835,75 @@ export default function AdminPanel({
               </div>
             </div>
 
+            {/* Filtri Stato Desideri (Pillole rapide) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-neutral-50/80 p-2.5 rounded-xl border border-neutral-200/70 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Stato:</span>
+                <button
+                  type="button"
+                  onClick={() => setWishStatusFilter('ALL')}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    wishStatusFilter === 'ALL'
+                      ? 'bg-stone-900 text-white shadow-xs'
+                      : 'bg-white text-stone-600 hover:bg-neutral-100 border border-neutral-200'
+                  }`}
+                >
+                  Tutti ({consolidatedWishRequests.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWishStatusFilter('RECEIVED')}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    wishStatusFilter === 'RECEIVED'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-white text-amber-900 hover:bg-amber-50 border border-amber-200'
+                  }`}
+                >
+                  ⏳ In Attesa ({consolidatedWishRequests.filter((w: TouristWishRequest) => w.status === 'RECEIVED').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWishStatusFilter('PROPOSAL_READY')}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    wishStatusFilter === 'PROPOSAL_READY'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white text-indigo-900 hover:bg-indigo-50 border border-indigo-200'
+                  }`}
+                >
+                  💡 Proposta Pronta ({consolidatedWishRequests.filter((w: TouristWishRequest) => w.status === 'PROPOSAL_READY').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWishStatusFilter('CONFIRMED')}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    wishStatusFilter === 'CONFIRMED'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-white text-emerald-900 hover:bg-emerald-50 border border-emerald-200'
+                  }`}
+                >
+                  🟢 Confermati ({consolidatedWishRequests.filter((w: TouristWishRequest) => w.status === 'CONFIRMED').length})
+                </button>
+              </div>
+
+              {wishSelectedWeddingCode !== 'ALL' && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-900 font-semibold bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200">
+                  <span>Filtrato per: <strong>{wishSelectedWeddingCode}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => setWishSelectedWeddingCode('ALL')}
+                    className="ml-1 text-amber-700 hover:text-amber-950 font-bold"
+                    title="Rimuovi filtro matrimonio"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-4">
               {(() => {
-                const activeCode = (selectedWedding?.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
-                const activeGuestEmails = (selectedWedding?.guests || []).map(g => (g.email || '').trim().toLowerCase()).filter(Boolean);
-                const activeGuestNames = (selectedWedding?.guests || []).map(g => (g.name || '').trim().toLowerCase()).filter(Boolean);
-
-                const filteredWishes = wishRequests.filter(w => {
+                const filteredWishes = consolidatedWishRequests.filter((w: TouristWishRequest) => {
+                  // Filtro testuale
                   if (wishSearchQuery.trim()) {
                     const q = wishSearchQuery.toLowerCase();
                     const matchText = (
@@ -4779,36 +4916,48 @@ export default function AdminPanel({
                     if (!matchText) return false;
                   }
 
-                  if (wishFilterScope === 'all') return true;
+                  // Filtro stato
+                  if (wishStatusFilter !== 'ALL' && w.status !== wishStatusFilter) {
+                    return false;
+                  }
 
-                  const wCode = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
-                  const isCodeMatch = wCode === activeCode;
-                  const isEmailMatch = activeGuestEmails.includes((w.guestEmail || '').trim().toLowerCase());
-                  const isNameMatch = activeGuestNames.includes((w.guestName || '').trim().toLowerCase());
+                  // Filtro matrimonio selezionato
+                  if (wishSelectedWeddingCode !== 'ALL') {
+                    const cleanTarget = wishSelectedWeddingCode.trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                    const cleanCode = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                    if (cleanCode !== cleanTarget) return false;
+                  }
 
-                  return isCodeMatch || isEmailMatch || isNameMatch;
+                  return true;
                 });
 
                 if (filteredWishes.length === 0) {
                   return (
-                    <div className="py-10 px-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-dashed border-neutral-200 space-y-3">
-                      <Sparkles className="w-8 h-8 mx-auto text-neutral-300" />
-                      <p className="text-sm font-semibold text-stone-700">Nessuna richiesta desideri trovata.</p>
+                    <div className="py-12 px-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl border border-dashed border-neutral-200 space-y-3">
+                      <Sparkles className="w-9 h-9 mx-auto text-amber-400 animate-pulse" />
+                      <p className="text-sm font-semibold text-stone-800">
+                        {wishSelectedWeddingCode !== 'ALL' || wishStatusFilter !== 'ALL' || wishSearchQuery
+                          ? 'Nessun desiderio corrisponde ai filtri selezionati.'
+                          : 'Nessuna richiesta desideri presente nel sistema.'}
+                      </p>
                       <p className="text-xs text-neutral-500 max-w-md mx-auto">
-                        {wishFilterScope === 'selected' 
-                          ? `Nessun desiderio salvato specificamente per ${selectedWedding?.coupleNames} (${selectedWedding?.weddingCode}). Ma ci sono ${wishRequests.length} desideri totali registrati.`
-                          : 'Nessun desiderio corrisponde ai filtri impostati.'
-                        }
+                        {consolidatedWishRequests.length > 0 
+                          ? `Sono presenti ${consolidatedWishRequests.length} desideri totali registrati negli altri matrimoni o con altri stati.`
+                          : 'Gli ospiti possono inviare desideri personalizzati tramite il loro portale o possono essere inseriti manualmente dall\'agenzia.'}
                       </p>
 
                       <div className="flex items-center justify-center gap-2 pt-2">
-                        {wishFilterScope === 'selected' && wishRequests.length > 0 && (
+                        {(wishSelectedWeddingCode !== 'ALL' || wishStatusFilter !== 'ALL' || wishSearchQuery) && (
                           <button
                             type="button"
-                            onClick={() => setWishFilterScope('all')}
+                            onClick={() => {
+                              setWishSelectedWeddingCode('ALL');
+                              setWishStatusFilter('ALL');
+                              setWishSearchQuery('');
+                            }}
                             className="px-4 py-2 bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold hover:bg-amber-200 cursor-pointer"
                           >
-                            Mostra Tutti i {wishRequests.length} Desideri
+                            Mostra Tutti i {consolidatedWishRequests.length} Desideri
                           </button>
                         )}
                         <button
@@ -4823,7 +4972,7 @@ export default function AdminPanel({
                   );
                 }
 
-                return filteredWishes.map(wish => {
+                return filteredWishes.map((wish: TouristWishRequest) => {
                   const relatedWedding = weddings.find(w => {
                     const c = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
                     const wc = (wish.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
@@ -4838,10 +4987,18 @@ export default function AdminPanel({
                             <span className="font-black text-stone-900 text-sm">{wish.guestName}</span>
                             <span className="text-[11px] text-neutral-500 font-mono">({wish.guestEmail})</span>
                             {wish.guestPhone && (
-                              <span className="text-[11px] text-stone-600 font-medium">📞 {wish.guestPhone}</span>
+                              <a 
+                                href={`https://wa.me/${wish.guestPhone.replace(/[^0-9]/g, '')}`} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="text-[11px] text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200"
+                                title="Scrivi su WhatsApp all'ospite"
+                              >
+                                <span>📞 {wish.guestPhone}</span>
+                              </a>
                             )}
-                            <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-mono font-bold text-[10px] uppercase border border-amber-200">
-                              Matrimonio: {wish.weddingCode || relatedWedding?.weddingCode || 'Generico'}
+                            <span className="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-950 font-mono font-bold text-[10px] uppercase border border-amber-200">
+                              Matrimonio: {relatedWedding?.coupleNames || wish.weddingCode} ({wish.weddingCode || relatedWedding?.weddingCode || 'Generico'})
                             </span>
                           </div>
                           <h4 className="text-base font-bold font-serif-luxury text-amber-950 mt-1">{wish.title}</h4>
@@ -4860,7 +5017,7 @@ export default function AdminPanel({
                           <button
                             type="button"
                             onClick={() => handleDeleteWish(wish.id, wish.title)}
-                            className="p-1.5 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                            className="p-1.5 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Elimina Desiderio"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -4874,7 +5031,7 @@ export default function AdminPanel({
 
                       {wish.agencyNotes && (
                         <div className="p-3 bg-indigo-50/70 rounded-xl text-xs text-indigo-950 border border-indigo-200">
-                          <strong className="font-bold text-indigo-900 block mb-0.5">Note Interne Valeria:</strong>
+                          <strong className="font-bold text-indigo-900 block mb-0.5">Note Interne Valeria & AD Marketing:</strong>
                           <span>{wish.agencyNotes}</span>
                         </div>
                       )}
@@ -4908,13 +5065,22 @@ export default function AdminPanel({
                               const cost = prompt('Inserisci il costo totale proposto per questa esperienza (€):', wish.proposedCost?.toString() || '150');
                               if (cost !== null && !isNaN(Number(cost))) {
                                 const notes = prompt('Inserisci una nota informativa per l\'ospite (opzionale):', wish.agencyNotes || 'Proposta elaborata dai nostri partner locali.');
-                                const updatedWishes = wishRequests.map(w => w.id === wish.id ? { 
-                                  ...w, 
-                                  proposedCost: Number(cost), 
-                                  agencyNotes: notes || w.agencyNotes,
-                                  status: 'PROPOSAL_READY' as const 
-                                } : w);
+                                const updatedItem: TouristWishRequest = {
+                                  ...wish,
+                                  proposedCost: Number(cost),
+                                  agencyNotes: notes || wish.agencyNotes,
+                                  status: 'PROPOSAL_READY' as const
+                                };
+                                const exists = wishRequests.some(w => w.id === wish.id);
+                                const updatedWishes = exists 
+                                  ? wishRequests.map(w => w.id === wish.id ? updatedItem : w)
+                                  : [updatedItem, ...wishRequests];
                                 onUpdateWishRequests(updatedWishes);
+                                fetch('/api/wishes', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify(updatedItem)
+                                }).catch(() => {});
                                 setAlertActionToast(`Proposta di €${cost} salvata per ${wish.guestName}!`);
                                 setTimeout(() => setAlertActionToast(null), 3000);
                               }
@@ -4975,11 +5141,23 @@ export default function AdminPanel({
                           <button
                             type="button"
                             onClick={() => {
-                              const updatedWishes = wishRequests.map(w => w.id === wish.id ? { 
-                                ...w, 
-                                status: (w.status === 'CONFIRMED' ? 'RECEIVED' : 'CONFIRMED') as any 
-                              } : w);
+                              const newStatus = wish.status === 'CONFIRMED' ? 'RECEIVED' : 'CONFIRMED';
+                              const updatedItem: TouristWishRequest = {
+                                ...wish,
+                                status: newStatus as any
+                              };
+                              const exists = wishRequests.some(w => w.id === wish.id);
+                              const updatedWishes = exists 
+                                ? wishRequests.map(w => w.id === wish.id ? updatedItem : w)
+                                : [updatedItem, ...wishRequests];
                               onUpdateWishRequests(updatedWishes);
+                              fetch('/api/wishes', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(updatedItem)
+                              }).catch(() => {});
+                              setAlertActionToast(`Stato desiderio aggiornato a: ${newStatus}`);
+                              setTimeout(() => setAlertActionToast(null), 3000);
                             }}
                             className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
                               wish.status === 'CONFIRMED'

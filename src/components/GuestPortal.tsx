@@ -53,7 +53,8 @@ import {
   ChatMessage,
   MasterSupplier,
   SupplierBookingOrder,
-  AdminSettings
+  AdminSettings,
+  FamilyCompanion
 } from '../data/weddingStore';
 
 interface GuestPortalProps {
@@ -82,13 +83,7 @@ interface GuestPortalProps {
   onOpenMenu?: () => void;
 }
 
-interface Companion {
-  id: string;
-  name: string;
-  relationship: 'Partner' | 'Figlio/a' | 'Genitore' | 'Amico/a' | 'Altro';
-  dietary: string;
-  notes: string;
-}
+export type Companion = FamilyCompanion;
 
 export interface SelectedRoomBooking {
   bookingId: string;
@@ -189,6 +184,24 @@ export default function GuestPortal({
     }
   });
 
+  const [primaryGuestFullName, setPrimaryGuestFullName] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`guest_rsvp_${weddingData.weddingCode}_${guestInfo.email}`);
+      return saved ? JSON.parse(saved).primaryGuestFullName || guestInfo.name : guestInfo.name;
+    } catch {
+      return guestInfo.name;
+    }
+  });
+
+  const [primaryGuestPhone, setPrimaryGuestPhone] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`guest_rsvp_${weddingData.weddingCode}_${guestInfo.email}`);
+      return saved ? JSON.parse(saved).primaryGuestPhone || '' : '';
+    } catch {
+      return '';
+    }
+  });
+
   const [familyName, setFamilyName] = useState(() => {
     try {
       const saved = localStorage.getItem(`guest_rsvp_${weddingData.weddingCode}_${guestInfo.email}`);
@@ -208,17 +221,65 @@ export default function GuestPortal({
   });
 
   const [newCompanionName, setNewCompanionName] = useState('');
-  const [newCompanionRel, setNewCompanionRel] = useState<'Partner' | 'Figlio/a' | 'Genitore' | 'Amico/a' | 'Altro'>('Partner');
-  const [newCompanionDiet, setNewCompanionDiet] = useState('Standard');
+  const [newCompanionRel, setNewCompanionRel] = useState<string>('Partner / Coniuge');
+  const [newCompanionAge, setNewCompanionAge] = useState<string>('Adulto');
+  const [newCompanionDiet, setNewCompanionDiet] = useState('Standard (Nessuna restrizione)');
+  const [newCompanionIntolerances, setNewCompanionIntolerances] = useState('');
+
+  // Stato per modifica in linea di un familiare esistente
+  const [editingCompanionId, setEditingCompanionId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRel, setEditRel] = useState('');
+  const [editAge, setEditAge] = useState('');
+  const [editDiet, setEditDiet] = useState('');
+  const [editIntolerances, setEditIntolerances] = useState('');
+
   const [rsvpSavedSuccess, setRsvpSavedSuccess] = useState(false);
 
+  const startEditCompanion = (comp: Companion) => {
+    setEditingCompanionId(comp.id);
+    setEditName(comp.name);
+    setEditRel(comp.relationship || 'Partner / Coniuge');
+    setEditAge(comp.ageCategory || 'Adulto');
+    setEditDiet(comp.dietary || 'Standard (Nessuna restrizione)');
+    setEditIntolerances(comp.intoleranceNotes || comp.notes || '');
+  };
+
+  const saveEditCompanion = () => {
+    if (!editingCompanionId || !editName.trim()) return;
+    setCompanions(prev => prev.map(c => {
+      if (c.id === editingCompanionId) {
+        return {
+          ...c,
+          name: editName.trim(),
+          relationship: editRel,
+          ageCategory: editAge,
+          dietary: editDiet,
+          intoleranceNotes: editIntolerances.trim(),
+          notes: editIntolerances.trim()
+        };
+      }
+      return c;
+    }));
+    setEditingCompanionId(null);
+  };
+
+  const cancelEditCompanion = () => {
+    setEditingCompanionId(null);
+  };
+
   const handleSaveRsvpAndFamily = () => {
+    const finalPrimaryName = primaryGuestFullName.trim() || guestInfo.name;
+    const finalFamilyName = familyName.trim() || `${finalPrimaryName} & Famiglia`;
+
     const payload = {
       status: rsvpStatus,
+      primaryGuestFullName: finalPrimaryName,
+      primaryGuestPhone,
       dietaryChoices,
       dietaryDetails,
       specialNeeds,
-      familyName,
+      familyName: finalFamilyName,
       companions,
       updatedAt: new Date().toISOString()
     };
@@ -228,8 +289,9 @@ export default function GuestPortal({
 
     if (onSaveGuestChoices) {
       onSaveGuestChoices({
-        name: guestInfo.name,
+        name: finalPrimaryName,
         email: guestInfo.email,
+        phone: primaryGuestPhone,
         weddingCode: weddingData.weddingCode,
         country: guestInfo.country,
         diet: `${dietaryChoices.join(', ')}${dietaryDetails ? ' (' + dietaryDetails + ')' : ''}`,
@@ -238,7 +300,7 @@ export default function GuestPortal({
         transferBooked: wantsTransfer ? currentTransfer?.title : 'Autonomo',
         experiences: selectedExperienceIds,
         extraServices: selectedServiceIds,
-        familyName,
+        familyName: finalFamilyName,
         companions,
         specialNeeds,
         dietaryChoices,
@@ -1462,172 +1524,399 @@ export default function GuestPortal({
 
           {rsvpStatus === 'CONFIRMED' && (
             <>
-              {/* 2. Intolleranze Alimentari, Allergie e Menu Speciali */}
+              {/* 2. Dettagli Ospite Principale & Sue Intolleranze Alimentari */}
               <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-4">
-                <h3 className="text-sm font-bold text-stone-800 flex items-center gap-2">
-                  <Utensils className="w-4 h-4 text-amber-700" />
-                  <span>2. Esigenze Alimentari, Allergie e Menu Speciali</span>
-                </h3>
-                <p className="text-xs text-neutral-600">
-                  Specifica il regime alimentare o eventuali intolleranze e allergie gravi (es. celiachia, allergia frutta secca) per te e il tuo nucleo.
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <h3 className="text-sm font-bold text-stone-800 flex items-center gap-2">
+                    <Utensils className="w-4 h-4 text-amber-700" />
+                    <span>2. Dati Ospite Principale &amp; Sue Intolleranze Alimentari</span>
+                  </h3>
+                  <span className="text-[11px] font-semibold text-stone-500 bg-white px-2.5 py-1 rounded-lg border border-neutral-200">
+                    Persona 1 del Nucleo (Tu)
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {[
-                    'Standard (Nessuna restrizione)',
-                    'Vegetariano',
-                    'Vegano',
-                    'Celiaco / Gluten Free',
-                    'Intollerante al Lattosio',
-                    'Menu Bambini',
-                    'Allergia Frutta Secca',
-                    'Altro'
-                  ].map((diet) => (
-                    <button
-                      key={diet}
-                      type="button"
-                      onClick={() => {
-                        if (diet === 'Standard (Nessuna restrizione)') {
-                          setDietaryChoices(['Standard (Nessuna restrizione)']);
-                        } else {
-                          setDietaryChoices(prev => {
-                            const withoutStandard = prev.filter(d => d !== 'Standard (Nessuna restrizione)');
-                            if (prev.includes(diet)) {
-                              return withoutStandard.filter(d => d !== diet);
-                            } else {
-                              return [...withoutStandard, diet];
-                            }
-                          });
-                        }
-                      }}
-                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer ${
-                        dietaryChoices.includes(diet)
-                          ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                          : 'bg-white text-neutral-700 border-neutral-200 hover:bg-amber-50/60'
-                      }`}
-                    >
-                      {diet}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                      Tuo Nome e Cognome
+                    </label>
+                    <input
+                      type="text"
+                      value={primaryGuestFullName}
+                      onChange={(e) => setPrimaryGuestFullName(e.target.value)}
+                      placeholder="Nome e Cognome completo"
+                      className="w-full text-xs p-2.5 rounded-xl border border-neutral-300 bg-white font-medium text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-stone-700"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                      Tuo Recapito Telefonico (per comunicazioni giorno nozze)
+                    </label>
+                    <input
+                      type="tel"
+                      value={primaryGuestPhone}
+                      onChange={(e) => setPrimaryGuestPhone(e.target.value)}
+                      placeholder="Es. +39 340 1234567"
+                      className="w-full text-xs p-2.5 rounded-xl border border-neutral-300 bg-white text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-stone-700"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 pt-2">
-                  <label className="block text-xs font-semibold text-stone-700">
-                    Dettagli specifici intolleranze, allergie o richieste di menu particolari:
+                  <label className="block text-[11px] font-semibold text-neutral-700">
+                    Tuo Regime Alimentare di Riferimento:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      'Standard (Nessuna restrizione)',
+                      'Celiaco / Gluten Free',
+                      'Intollerante al Lattosio',
+                      'Vegetariano',
+                      'Vegano',
+                      'Allergia Frutta Secca',
+                      'Allergia Pesce / Crostacei',
+                      'Altro'
+                    ].map((diet) => (
+                      <button
+                        key={diet}
+                        type="button"
+                        onClick={() => {
+                          if (diet === 'Standard (Nessuna restrizione)') {
+                            setDietaryChoices(['Standard (Nessuna restrizione)']);
+                          } else {
+                            setDietaryChoices(prev => {
+                              const withoutStandard = prev.filter(d => d !== 'Standard (Nessuna restrizione)');
+                              if (prev.includes(diet)) {
+                                return withoutStandard.filter(d => d !== diet);
+                              } else {
+                                return [...withoutStandard, diet];
+                              }
+                            });
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer ${
+                          dietaryChoices.includes(diet)
+                            ? 'bg-amber-700 text-white border-amber-800 shadow-xs'
+                            : 'bg-white text-neutral-700 border-neutral-200 hover:bg-amber-50/60'
+                        }`}
+                      >
+                        {diet}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-[11px] font-semibold text-stone-700">
+                    Tue Note Dettagliate Intolleranze / Allergie per la Cucina del Ristorante:
                   </label>
                   <textarea
                     rows={2}
                     value={dietaryDetails}
                     onChange={(e) => setDietaryDetails(e.target.value)}
-                    placeholder="Es. Celiachia severa per il primo commensale, allergia alle arachidi per l'accompagnatore..."
-                    className="w-full text-xs p-3 rounded-xl border border-neutral-200 bg-white text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-rose-900/20"
+                    placeholder="Es. Celiachia certificata severa senza contaminazione; oppure intolleranza al lattosio (no formaggi e burro); oppure nessuna..."
+                    className="w-full text-xs p-3 rounded-xl border border-neutral-300 bg-white text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-stone-700"
                   />
                 </div>
               </div>
 
               {/* 3. Gestione Accompagnatori e Famiglia (Nucleo Familiare) */}
-              <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-stone-800 flex items-center gap-2">
                       <Users className="w-4 h-4 text-indigo-700" />
-                      <span>3. Gestione Accompagnatori & Nucleo Familiare</span>
+                      <span>3. Nucleo Familiare &amp; Note Intolleranze per Ogni Persona</span>
                     </h3>
                     <p className="text-xs text-neutral-600 mt-0.5">
-                      Raggruppa gli invitati del tuo nucleo familiare o gruppo di amici per assegnare posti e servizi insieme.
+                      Specifica nome e cognome e le note sulle intolleranze per ciascun componente del tuo nucleo (partner, figli, genitori, amici).
                     </p>
                   </div>
-                  <div className="w-full sm:w-64">
-                    <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">Nome Nucleo Familiare</label>
+                  <div className="w-full sm:w-72">
+                    <label className="block text-[10px] font-bold text-neutral-600 uppercase mb-1">
+                      Denominazione Nucleo Familiare
+                    </label>
                     <input
                       type="text"
                       value={familyName}
                       onChange={(e) => setFamilyName(e.target.value)}
                       placeholder="Es. Famiglia Rossi"
-                      className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-200 bg-white text-stone-800 font-semibold"
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 bg-white text-stone-800 font-semibold"
                     />
                   </div>
                 </div>
 
-                {/* Lista Accompagnatori */}
-                {companions.length > 0 ? (
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-stone-700 block">Accompagnatori inseriti ({companions.length}):</span>
-                    <div className="space-y-2">
-                      {companions.map((comp) => (
-                        <div key={comp.id} className="p-3 bg-white rounded-xl border border-neutral-200 flex items-center justify-between gap-3">
-                          <div className="space-y-0.5">
-                            <div className="text-xs font-bold text-stone-800 flex items-center gap-2">
-                              <span>{comp.name}</span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-neutral-100 text-neutral-700 border border-neutral-200">
-                                {comp.relationship}
-                              </span>
+                {/* Badge Conteggio Coperti Nucleo */}
+                <div className="flex items-center justify-between p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-900">
+                  <div className="flex items-center gap-2 font-medium">
+                    <span className="font-bold">Totale Coperti Nucleo:</span>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white font-bold text-xs">
+                      {1 + companions.length} persone
+                    </span>
+                    <span className="text-[11px] text-indigo-700">
+                      (1 Ospite principale + {companions.length} familiari/accompagnatori)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-indigo-700 italic hidden sm:inline">
+                    Verranno comunicati allo chef del ristorante
+                  </span>
+                </div>
+
+                {/* Elenco Componenti del Nucleo Inseriti */}
+                <div className="space-y-3">
+                  <span className="text-xs font-bold text-stone-800 block">
+                    Componenti Aggiuntivi Inseriti ({companions.length}):
+                  </span>
+
+                  {companions.length > 0 ? (
+                    <div className="space-y-3">
+                      {companions.map((comp, idx) => {
+                        const isEditingThis = editingCompanionId === comp.id;
+
+                        if (isEditingThis) {
+                          return (
+                            <div key={comp.id} className="p-4 bg-white rounded-xl border-2 border-indigo-400 shadow-sm space-y-3">
+                              <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+                                <span className="text-xs font-bold text-indigo-900">
+                                  Modifica Dati &amp; Intolleranze: {comp.name}
+                                </span>
+                                <span className="text-[10px] text-neutral-400 font-mono">#{idx + 1}</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div className="sm:col-span-4">
+                                  <label className="block text-[10px] font-semibold text-neutral-600 mb-1">Nome e Cognome</label>
+                                  <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full text-xs p-2 rounded-lg border border-neutral-300 font-semibold text-stone-800"
+                                  />
+                                </div>
+                                <div className="sm:col-span-3">
+                                  <label className="block text-[10px] font-semibold text-neutral-600 mb-1">Relazione / Ruolo</label>
+                                  <select
+                                    value={editRel}
+                                    onChange={(e) => setEditRel(e.target.value)}
+                                    className="w-full text-xs p-2 rounded-lg border border-neutral-300 text-stone-800"
+                                  >
+                                    <option value="Partner / Coniuge">Partner / Coniuge</option>
+                                    <option value="Figlio/a">Figlio / Figlia</option>
+                                    <option value="Genitore">Genitore</option>
+                                    <option value="Amico/a">Amico / Amica</option>
+                                    <option value="Altro">Altro</option>
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="block text-[10px] font-semibold text-neutral-600 mb-1">Fascia Età / Menu</label>
+                                  <select
+                                    value={editAge}
+                                    onChange={(e) => setEditAge(e.target.value)}
+                                    className="w-full text-xs p-2 rounded-lg border border-neutral-300 text-stone-800"
+                                  >
+                                    <option value="Adulto">Adulto</option>
+                                    <option value="Bambino">Menu Bimbi</option>
+                                    <option value="Neonato">Neonato (Seggiolone)</option>
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-3">
+                                  <label className="block text-[10px] font-semibold text-neutral-600 mb-1">Esigenza Alimentare</label>
+                                  <select
+                                    value={editDiet}
+                                    onChange={(e) => setEditDiet(e.target.value)}
+                                    className="w-full text-xs p-2 rounded-lg border border-neutral-300 text-stone-800"
+                                  >
+                                    <option value="Standard (Nessuna restrizione)">Standard</option>
+                                    <option value="Celiaco / Gluten Free">Celiaco / Gluten Free</option>
+                                    <option value="Intollerante al Lattosio">Intollerante al Lattosio</option>
+                                    <option value="Vegetariano">Vegetariano</option>
+                                    <option value="Vegano">Vegano</option>
+                                    <option value="Allergia Frutta Secca">Allergia Frutta Secca</option>
+                                    <option value="Allergia Pesce / Crostacei">Allergia Pesce / Crostacei</option>
+                                    <option value="Menu Bimbi">Menu Bimbi</option>
+                                    <option value="Altro">Altro</option>
+                                  </select>
+                                </div>
+                                <div className="sm:col-span-12">
+                                  <label className="block text-[10px] font-semibold text-neutral-600 mb-1">Note Dettagliate Intolleranze / Allergie per questa Persona</label>
+                                  <input
+                                    type="text"
+                                    value={editIntolerances}
+                                    onChange={(e) => setEditIntolerances(e.target.value)}
+                                    placeholder="Es. Intolleranza severa al lattosio, no panna o burro; oppure no crostacei"
+                                    className="w-full text-xs p-2 rounded-lg border border-neutral-300 text-stone-800"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-2 pt-1 border-t border-neutral-100">
+                                <button
+                                  type="button"
+                                  onClick={cancelEditCompanion}
+                                  className="px-3 py-1.5 text-xs text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-lg cursor-pointer"
+                                >
+                                  Annulla
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={saveEditCompanion}
+                                  className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer"
+                                >
+                                  Salva Modifiche
+                                </button>
+                              </div>
                             </div>
-                            <div className="text-[11px] text-neutral-500">
-                              Preferenza alimentare: <strong className="text-neutral-700">{comp.dietary}</strong>
+                          );
+                        }
+
+                        return (
+                          <div 
+                            key={comp.id} 
+                            className="p-4 bg-white rounded-xl border border-neutral-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-neutral-300 transition-colors"
+                          >
+                            <div className="space-y-1.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-stone-900">{comp.name}</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-neutral-100 text-neutral-700 border border-neutral-200">
+                                  {comp.relationship}
+                                </span>
+                                {comp.ageCategory && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                                    {comp.ageCategory}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 text-[11px] text-neutral-600 flex-wrap">
+                                <span>Regime: <strong className="text-stone-800">{comp.dietary}</strong></span>
+                              </div>
+
+                              {/* Note Intolleranze Individuali */}
+                              {(comp.intoleranceNotes || comp.notes) ? (
+                                <div className="text-[11px] text-amber-900 bg-amber-50/80 border border-amber-200 px-2.5 py-1 rounded-lg font-medium inline-block">
+                                  ⚠️ Note intolleranze per cucina: {comp.intoleranceNotes || comp.notes}
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-neutral-400 italic">
+                                  Nessuna intolleranza specifica segnalata
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => startEditCompanion(comp)}
+                                className="px-2.5 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
+                              >
+                                Modifica
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCompanions(companions.filter(c => c.id !== comp.id))}
+                                className="px-2.5 py-1.5 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Rimuovi dal nucleo"
+                              >
+                                Rimuovi
+                              </button>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setCompanions(companions.filter(c => c.id !== comp.id))}
-                            className="text-xs text-rose-600 hover:text-rose-800 p-1.5 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Rimuovi accompagnatore"
-                          >
-                            Rimuovi
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-white rounded-xl border border-dashed border-neutral-300 text-center text-xs text-neutral-500">
-                    Nessun accompagnatore aggiunto al tuo nucleo. Se partecipi con partner, figli o amici, aggiungili qui sotto.
-                  </div>
-                )}
+                  ) : (
+                    <div className="p-4 bg-white rounded-xl border border-dashed border-neutral-300 text-center text-xs text-neutral-500">
+                      Nessun accompagnatore aggiunto al tuo nucleo. Se partecipi con coniuge, figli o altri familiari, aggiungili qui sotto specificando nome, cognome e note intolleranze per ciascuno.
+                    </div>
+                  )}
+                </div>
 
                 {/* Form Aggiungi Accompagnatore */}
-                <div className="p-4 bg-white rounded-xl border border-neutral-200 space-y-3">
-                  <span className="text-xs font-bold text-stone-800 block">Aggiungi un Accompagnatore al Nucleo:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="block text-[10px] text-neutral-500 mb-1">Nome e Cognome</label>
+                <div className="p-4 bg-white rounded-xl border border-neutral-300 shadow-2xs space-y-3">
+                  <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                    <PlusCircle className="w-4 h-4 text-indigo-600" />
+                    <span>Aggiungi Persona al Nucleo Familiare:</span>
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-4">
+                      <label className="block text-[10px] font-semibold text-neutral-600 mb-1">
+                        Nome e Cognome *
+                      </label>
                       <input
                         type="text"
                         value={newCompanionName}
                         onChange={(e) => setNewCompanionName(e.target.value)}
-                        placeholder="Es. Marco Rossi"
-                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-stone-800"
+                        placeholder="Es. Giulia Bianchi"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 bg-neutral-50 text-stone-800 focus:bg-white font-medium"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] text-neutral-500 mb-1">Relazione / Ruolo</label>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[10px] font-semibold text-neutral-600 mb-1">
+                        Relazione / Ruolo
+                      </label>
                       <select
                         value={newCompanionRel}
-                        onChange={(e) => setNewCompanionRel(e.target.value as any)}
-                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-stone-800"
+                        onChange={(e) => setNewCompanionRel(e.target.value)}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 bg-neutral-50 text-stone-800"
                       >
-                        <option value="Partner">Partner / Coniuge</option>
+                        <option value="Partner / Coniuge">Partner / Coniuge</option>
                         <option value="Figlio/a">Figlio / Figlia</option>
                         <option value="Genitore">Genitore</option>
                         <option value="Amico/a">Amico / Amica</option>
                         <option value="Altro">Altro</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-[10px] text-neutral-500 mb-1">Esigenza Alimentare</label>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-semibold text-neutral-600 mb-1">
+                        Fascia Età
+                      </label>
+                      <select
+                        value={newCompanionAge}
+                        onChange={(e) => setNewCompanionAge(e.target.value)}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 bg-neutral-50 text-stone-800"
+                      >
+                        <option value="Adulto">Adulto</option>
+                        <option value="Bambino">Menu Bimbi</option>
+                        <option value="Neonato">Neonato (Seggiolone)</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[10px] font-semibold text-neutral-600 mb-1">
+                        Regime Alimentare
+                      </label>
                       <select
                         value={newCompanionDiet}
                         onChange={(e) => setNewCompanionDiet(e.target.value)}
-                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 text-stone-800"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 bg-neutral-50 text-stone-800"
                       >
-                        <option value="Standard">Standard</option>
+                        <option value="Standard (Nessuna restrizione)">Standard (Nessuna)</option>
+                        <option value="Celiaco / Gluten Free">Celiaco / Gluten Free</option>
+                        <option value="Intollerante al Lattosio">Intollerante al Lattosio</option>
                         <option value="Vegetariano">Vegetariano</option>
                         <option value="Vegano">Vegano</option>
-                        <option value="Celiaco">Celiaco</option>
+                        <option value="Allergia Frutta Secca">Allergia Frutta Secca</option>
+                        <option value="Allergia Pesce / Crostacei">Allergia Pesce / Crostacei</option>
                         <option value="Menu Bimbi">Menu Bimbi</option>
+                        <option value="Altro">Altro</option>
                       </select>
                     </div>
+
+                    <div className="sm:col-span-12">
+                      <label className="block text-[10px] font-semibold text-neutral-600 mb-1">
+                        Note Intolleranze / Allergie della Persona per la Cucina:
+                      </label>
+                      <input
+                        type="text"
+                        value={newCompanionIntolerances}
+                        onChange={(e) => setNewCompanionIntolerances(e.target.value)}
+                        placeholder="Es. Intolleranza severa al lattosio (no formaggi e panna); oppure allergia grave alle noci"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-neutral-300 bg-neutral-50 text-stone-800 focus:bg-white"
+                      />
+                    </div>
                   </div>
+
                   <div className="flex justify-end pt-1">
                     <button
                       type="button"
@@ -1640,15 +1929,18 @@ export default function GuestPortal({
                             name: newCompanionName.trim(),
                             relationship: newCompanionRel,
                             dietary: newCompanionDiet,
-                            notes: ''
+                            intoleranceNotes: newCompanionIntolerances.trim(),
+                            notes: newCompanionIntolerances.trim(),
+                            ageCategory: newCompanionAge
                           }
                         ]);
                         setNewCompanionName('');
+                        setNewCompanionIntolerances('');
                       }}
-                      className="px-4 py-2 bg-stone-750 hover:bg-black text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <PlusCircle className="w-3.5 h-3.5" />
-                      <span>Aggiungi Accompagnatore</span>
+                      <span>Aggiungi Persona al Nucleo</span>
                     </button>
                   </div>
                 </div>

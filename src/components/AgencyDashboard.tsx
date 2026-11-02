@@ -41,6 +41,8 @@ import {
   MasterSupplier,
   SupplierPackage,
   ExperienceItem,
+  TouristWishRequest,
+  INITIAL_WISH_REQUESTS,
   INITIAL_SUPPLIERS,
   INITIAL_SUPPLIER_PACKAGES,
   getSharedExperiencesDatabase,
@@ -83,6 +85,8 @@ interface AgencyDashboardProps {
   onUpdateWeddings?: (weddings: WeddingData[]) => void;
   suppliers?: MasterSupplier[];
   packages?: SupplierPackage[];
+  wishRequests?: TouristWishRequest[];
+  onUpdateWishRequests?: (wishes: TouristWishRequest[]) => void;
 }
 
 export default function AgencyDashboard({ 
@@ -92,10 +96,62 @@ export default function AgencyDashboard({
   onNavigateToAdminTab,
   onUpdateWeddings,
   suppliers = INITIAL_SUPPLIERS,
-  packages = INITIAL_SUPPLIER_PACKAGES
+  packages = INITIAL_SUPPLIER_PACKAGES,
+  wishRequests = INITIAL_WISH_REQUESTS,
+  onUpdateWishRequests
 }: AgencyDashboardProps) {
   // Tab Principale Dashboard Agenzia
-  const [activeTab, setActiveTab] = useState<'guests-report' | 'soci' | 'audit-logs' | 'hotels' | 'transfers' | 'experiences' | 'payments'>('guests-report');
+  const [activeTab, setActiveTab] = useState<'guests-report' | 'wishes' | 'soci' | 'audit-logs' | 'hotels' | 'transfers' | 'experiences' | 'payments'>('guests-report');
+
+  // Filtri Sezione Desideri & Wishlist Ospiti
+  const [agencyWishSearch, setAgencyWishSearch] = useState('');
+  const [agencyWishWeddingFilter, setAgencyWishWeddingFilter] = useState('ALL');
+  const [agencyWishStatusFilter, setAgencyWishStatusFilter] = useState('ALL');
+  const [wishActionToast, setWishActionToast] = useState<string | null>(null);
+
+  // Unifica i desideri da wishRequests con qualsiasi segnalazione GUEST_WISH presente nelle notifiche dei matrimoni
+  const consolidatedWishRequests = React.useMemo(() => {
+    const map = new Map<string, TouristWishRequest>();
+    (wishRequests || []).forEach(w => {
+      if (w.id) map.set(w.id, w);
+    });
+
+    (weddings || []).forEach(w => {
+      (w.notifications || []).forEach(n => {
+        if (n.source === 'GUEST_WISH') {
+          const alreadyExists = Array.from(map.values()).some(existing => 
+            existing.id === n.id || 
+            (existing.title && n.title && (
+              existing.title.toLowerCase().trim() === n.title.toLowerCase().trim() ||
+              n.title.toLowerCase().includes(existing.title.toLowerCase())
+            ))
+          );
+
+          if (!alreadyExists) {
+            const cleanTitle = n.title.replace(/^Nuov[ao] (Richiesta )?Desiderio( Ospite)?:\s*/i, '').trim();
+            const synthWish: TouristWishRequest = {
+              id: n.id || `wish-from-notif-${Date.now()}`,
+              weddingCode: n.weddingCode || w.weddingCode,
+              guestName: (n.authorName || 'Ospite').replace(/\s*\(Ospite\)$/i, ''),
+              guestEmail: (w.guests && w.guests.length > 0 ? w.guests[0].email : '') || 'ospite@matrimonio.it',
+              guestPhone: (w.guests && w.guests.length > 0 ? w.guests[0].phone : '') || '',
+              title: cleanTitle || n.title,
+              description: n.description || 'Richiesta speciale registrata nel riassunto nozze.',
+              preferredDate: w.weddingDate || '2026-09-12',
+              participantsCount: 2,
+              budgetRange: '€150 - €300',
+              status: n.read ? 'CONFIRMED' : 'RECEIVED',
+              agencyNotes: `Sincronizzato da avviso matrimonio (${n.timestamp || 'Recente'}).`,
+              createdAt: n.timestamp || new Date().toISOString().substring(0, 10)
+            };
+            map.set(synthWish.id, synthWish);
+          }
+        }
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [wishRequests, weddings]);
 
   // Filtro Matrimonio per Logistica, Esperienze e Hotel
   const [selectedWeddingCodeForHotels, setSelectedWeddingCodeForHotels] = useState<string>('ALL');
@@ -432,6 +488,21 @@ export default function AgencyDashboard({
         </button>
 
         <button
+          onClick={() => setActiveTab('wishes')}
+          className={`px-5 py-2.5 rounded-full font-semibold text-xs transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === 'wishes'
+              ? 'bg-amber-900 text-white shadow-sm'
+              : 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-200'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span>Desideri &amp; Wishlist Ospiti</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-bold">
+            {consolidatedWishRequests.length}
+          </span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('soci')}
           className={`px-5 py-2.5 rounded-full font-semibold text-xs transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'soci'
@@ -734,6 +805,357 @@ export default function AgencyDashboard({
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SEZIONE DEDICATA: DESIDERI & WISHLIST OSPITI LATO AGENZIA                 */}
+      {/* ========================================================================= */}
+      {activeTab === 'wishes' && (
+        <div className="space-y-6">
+          {wishActionToast && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs font-semibold flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{wishActionToast}</span>
+              </div>
+              <button onClick={() => setWishActionToast(null)} className="text-amber-700 hover:text-amber-950">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Header e KPI Desideri */}
+          <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 uppercase tracking-wider">
+                    Incoming Concierge Bespoke
+                  </span>
+                  <span className="text-xs text-neutral-500 font-mono">
+                    AD Marketing S.r.l.s. &bull; Centrale Operativa Puglia
+                  </span>
+                </div>
+                <h2 className="text-xl font-extrabold text-stone-800 mt-1">
+                  Desideri &amp; Wishlist Ospiti Matrimoni
+                </h2>
+                <p className="text-neutral-500 text-xs">
+                  Richieste personalizzate, tour su misura ed esperienze speciali inviate dagli invitati per i matrimoni in gestione.
+                </p>
+              </div>
+
+              {onNavigateToAdminTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateToAdminTab('wishlist')}
+                  className="px-4 py-2 bg-stone-800 hover:bg-stone-900 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Gestisci nel Back Office Completo &rarr;</span>
+                </button>
+              )}
+            </div>
+
+            {/* KPI Mini-Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-neutral-100 text-xs">
+              <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/80">
+                <span className="text-amber-900 block text-[10px] uppercase font-bold">Totale Desideri</span>
+                <span className="text-xl font-black text-amber-950">{consolidatedWishRequests.length}</span>
+              </div>
+              <div className="bg-amber-100/50 p-3 rounded-xl border border-amber-300/80">
+                <span className="text-amber-800 block text-[10px] uppercase font-bold">In Attesa di Proposta</span>
+                <span className="text-xl font-black text-amber-900">
+                  {consolidatedWishRequests.filter(w => w.status === 'RECEIVED').length}
+                </span>
+              </div>
+              <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200">
+                <span className="text-indigo-800 block text-[10px] uppercase font-bold">Proposte Pronte</span>
+                <span className="text-xl font-black text-indigo-900">
+                  {consolidatedWishRequests.filter(w => w.status === 'PROPOSAL_READY').length}
+                </span>
+              </div>
+              <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                <span className="text-emerald-800 block text-[10px] uppercase font-bold">Confermati</span>
+                <span className="text-xl font-black text-emerald-900">
+                  {consolidatedWishRequests.filter(w => w.status === 'CONFIRMED').length}
+                </span>
+              </div>
+            </div>
+
+            {/* Barra Filtri Desideri */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-neutral-100 text-xs">
+              <div className="relative w-full md:w-80">
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Cerca per titolo, ospite, email o codice..."
+                  value={agencyWishSearch}
+                  onChange={(e) => setAgencyWishSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 bg-neutral-50 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-amber-900 focus:bg-white focus:outline-hidden"
+                />
+                {agencyWishSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setAgencyWishSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filtro Matrimonio */}
+                <select
+                  value={agencyWishWeddingFilter}
+                  onChange={(e) => setAgencyWishWeddingFilter(e.target.value)}
+                  className="px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl font-semibold text-neutral-700 cursor-pointer"
+                >
+                  <option value="ALL">Tutti i Matrimoni ({consolidatedWishRequests.length})</option>
+                  {weddings.map(w => {
+                    const cTarget = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                    const count = consolidatedWishRequests.filter(cw => {
+                      const cItem = (cw.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                      return cItem === cTarget;
+                    }).length;
+                    return (
+                      <option key={w.id} value={w.weddingCode}>
+                        {w.coupleNames} ({w.weddingCode}) &bull; {count}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* Filtro Stato */}
+                <select
+                  value={agencyWishStatusFilter}
+                  onChange={(e) => setAgencyWishStatusFilter(e.target.value)}
+                  className="px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl font-medium text-neutral-700 cursor-pointer"
+                >
+                  <option value="ALL">Tutti gli Stati</option>
+                  <option value="RECEIVED">In Attesa di Proposta</option>
+                  <option value="PROPOSAL_READY">Proposta Pronta</option>
+                  <option value="CONFIRMED">Confermati</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Griglia / Lista Schede Desideri */}
+          <div className="space-y-4">
+            {(() => {
+              const filteredList = consolidatedWishRequests.filter(w => {
+                if (agencyWishSearch.trim()) {
+                  const q = agencyWishSearch.toLowerCase();
+                  const match = (
+                    (w.title || '').toLowerCase().includes(q) ||
+                    (w.description || '').toLowerCase().includes(q) ||
+                    (w.guestName || '').toLowerCase().includes(q) ||
+                    (w.guestEmail || '').toLowerCase().includes(q) ||
+                    (w.weddingCode || '').toLowerCase().includes(q)
+                  );
+                  if (!match) return false;
+                }
+
+                if (agencyWishStatusFilter !== 'ALL' && w.status !== agencyWishStatusFilter) {
+                  return false;
+                }
+
+                if (agencyWishWeddingFilter !== 'ALL') {
+                  const cTarget = agencyWishWeddingFilter.trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                  const cCode = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                  if (cCode !== cTarget) return false;
+                }
+
+                return true;
+              });
+
+              if (filteredList.length === 0) {
+                return (
+                  <div className="bg-white p-12 rounded-2xl border border-neutral-200 text-center space-y-3">
+                    <Sparkles className="w-10 h-10 text-amber-400 mx-auto animate-pulse" />
+                    <h3 className="text-sm font-bold text-stone-800">Nessuna richiesta desideri trovata</h3>
+                    <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                      {consolidatedWishRequests.length > 0 
+                        ? `Ci sono ${consolidatedWishRequests.length} richieste totali registrate negli altri matrimoni o con altri filtri.`
+                        : 'Gli ospiti possono inserire richieste speciali dal loro portale o direttamente da Valeria.'}
+                    </p>
+                    {(agencyWishSearch || agencyWishWeddingFilter !== 'ALL' || agencyWishStatusFilter !== 'ALL') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAgencyWishSearch('');
+                          setAgencyWishWeddingFilter('ALL');
+                          setAgencyWishStatusFilter('ALL');
+                        }}
+                        className="px-4 py-2 bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold hover:bg-amber-200 cursor-pointer"
+                      >
+                        Mostra Tutti i {consolidatedWishRequests.length} Desideri
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              return filteredList.map(wish => {
+                const targetWedding = weddings.find(w => {
+                  const c1 = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                  const c2 = (wish.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+                  return c1 === c2;
+                });
+
+                return (
+                  <div key={wish.id} className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-2xs hover:shadow-md transition-all space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-neutral-100">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-stone-900 text-sm">{wish.guestName}</span>
+                          <span className="text-[11px] text-neutral-500 font-mono">({wish.guestEmail})</span>
+                          {wish.guestPhone && (
+                            <a
+                              href={`https://wa.me/${wish.guestPhone.replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200"
+                              title="Scrivi all'ospite su WhatsApp"
+                            >
+                              <span>📞 {wish.guestPhone}</span>
+                            </a>
+                          )}
+                          <span className="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-mono font-bold text-[10px] uppercase border border-amber-200">
+                            Matrimonio: {targetWedding?.coupleNames || wish.weddingCode} ({wish.weddingCode})
+                          </span>
+                        </div>
+                        <h4 className="text-base font-bold font-serif-luxury text-amber-950 mt-1">{wish.title}</h4>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                          wish.status === 'RECEIVED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                          wish.status === 'PROPOSAL_READY' ? 'bg-indigo-100 text-indigo-900 border border-indigo-300' :
+                          'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        }`}>
+                          {wish.status === 'RECEIVED' ? '⏳ IN ATTESA' :
+                           wish.status === 'PROPOSAL_READY' ? '💡 PROPOSTA PRONTA' :
+                           '🟢 CONFERMATO'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-neutral-50 rounded-xl text-xs text-stone-700 leading-relaxed italic border border-neutral-200">
+                      "{wish.description}"
+                    </div>
+
+                    {wish.agencyNotes && (
+                      <div className="p-3 bg-indigo-50/70 rounded-xl text-xs text-indigo-950 border border-indigo-200">
+                        <strong className="font-bold text-indigo-900 block mb-0.5">Note Interne Valeria &amp; Agenzia:</strong>
+                        <span>{wish.agencyNotes}</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600 border-t border-neutral-100 pt-3">
+                      <div className="flex flex-wrap items-center gap-4 text-[11px]">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                          <span>Data: <strong className="text-stone-800">{wish.preferredDate || 'Flessibile'}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-stone-400" />
+                          <span>Pax: <strong className="text-stone-800">{wish.participantsCount}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="w-3.5 h-3.5 text-stone-400" />
+                          <span>Budget: <strong className="text-stone-800">{wish.budgetRange || 'Non specificato'}</strong></span>
+                        </div>
+                        {wish.proposedCost !== undefined && (
+                          <div className="flex items-center gap-1 text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            <span>Quotazione: € {wish.proposedCost}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Azioni Rapide Lato Agenzia */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cost = prompt('Inserisci il costo totale proposto (€):', wish.proposedCost?.toString() || '160');
+                            if (cost !== null && !isNaN(Number(cost))) {
+                              const notes = prompt('Note interne / fornitore (opzionale):', wish.agencyNotes || 'Proposta definita dall\'agenzia.');
+                              const updatedItem: TouristWishRequest = {
+                                ...wish,
+                                proposedCost: Number(cost),
+                                agencyNotes: notes || wish.agencyNotes,
+                                status: 'PROPOSAL_READY' as const
+                              };
+                              const exists = (wishRequests || []).some(w => w.id === wish.id);
+                              const nextList = exists
+                                ? (wishRequests || []).map(w => w.id === wish.id ? updatedItem : w)
+                                : [updatedItem, ...(wishRequests || [])];
+                              if (onUpdateWishRequests) onUpdateWishRequests(nextList);
+                              fetch('/api/wishes', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(updatedItem)
+                              }).catch(() => {});
+                              setWishActionToast(`Quotazione di €${cost} salvata per ${wish.guestName}!`);
+                              setTimeout(() => setWishActionToast(null), 3500);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-stone-800 text-white text-[11px] font-bold rounded-lg hover:bg-stone-900 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{wish.proposedCost ? 'Modifica Prezzo' : 'Inserisci Quotazione'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newStatus = wish.status === 'CONFIRMED' ? 'RECEIVED' : 'CONFIRMED';
+                            const updatedItem: TouristWishRequest = {
+                              ...wish,
+                              status: newStatus as any
+                            };
+                            const exists = (wishRequests || []).some(w => w.id === wish.id);
+                            const nextList = exists
+                              ? (wishRequests || []).map(w => w.id === wish.id ? updatedItem : w)
+                              : [updatedItem, ...(wishRequests || [])];
+                            if (onUpdateWishRequests) onUpdateWishRequests(nextList);
+                            fetch('/api/wishes', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(updatedItem)
+                            }).catch(() => {});
+                            setWishActionToast(`Stato aggiornato a: ${newStatus}`);
+                            setTimeout(() => setWishActionToast(null), 3000);
+                          }}
+                          className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                            wish.status === 'CONFIRMED'
+                              ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          }`}
+                        >
+                          {wish.status === 'CONFIRMED' ? 'Ripristina in Attesa' : 'Segna Confermato 🟢'}
+                        </button>
+
+                        {wish.guestPhone && (
+                          <a
+                            href={`https://wa.me/${wish.guestPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Gentile ${wish.guestName}, ti contattiamo da AD Marketing Concierge Puglia per il tuo desiderio "${wish.title}" per il matrimonio ${wish.weddingCode}.`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <span>WhatsApp</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}

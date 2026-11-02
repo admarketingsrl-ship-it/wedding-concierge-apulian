@@ -2066,6 +2066,8 @@ export default function App() {
             packages={packages}
             bookingOrders={bookingOrders}
             paymentRequests={paymentRequests}
+            wishRequests={wishRequests}
+            onUpdateWishRequests={handleUpdateWishRequests}
             onNavigateToAdminTab={(tab, _weddingId) => {
               setAuthRole('admin');
               setCurrentView('admin');

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Heart, 
   Calendar, 
@@ -37,7 +37,12 @@ import {
   Send,
   ShoppingCart,
   Menu,
-  LogOut
+  LogOut,
+  Printer,
+  Download,
+  Filter,
+  ShieldAlert,
+  ChefHat
 } from 'lucide-react';
 import HamburgerMenu from './HamburgerMenu';
 import { 
@@ -403,8 +408,180 @@ export default function CouplePortal({
     triggerToast(customMessage || 'Modifiche salvate con successo! Visibili immediatamente agli ospiti.');
   };
 
+  // Definizione interfaccia per singolo coperto/invitato (Ospite Principale o Accompagnatore)
+  interface IndividualGuestRecord {
+    id: string;
+    guestId: string;
+    isCompanion: boolean;
+    fullName: string;
+    familyName: string;
+    role: string;
+    ageCategory: 'Adulto' | 'Bambino';
+    relationship: string;
+    dietary: string;
+    intoleranceNotes: string;
+    hasSpecialDiet: boolean;
+    hotelBooked: string;
+    roomType?: string;
+    transferBooked: string;
+    primaryContactName: string;
+    primaryContactEmail: string;
+    primaryContactPhone: string;
+    status: string;
+  }
+
+  // Calcolo Roster Singoli Coperti (Ospiti Principali + Accompagnatori di ciascun nucleo familiare)
+  const allIndividualGuests: IndividualGuestRecord[] = useMemo(() => {
+    const list: IndividualGuestRecord[] = [];
+    (weddingData.guests || []).forEach((g) => {
+      const familyLabel = g.familyName?.trim() || `Nucleo ${g.name}`;
+
+      // 1. Ospite Principale
+      const primaryDiet = g.diet || 'Standard';
+      const primaryNotes = g.specialNeeds?.trim() || '';
+      const primaryHasSpecialDiet = Boolean(
+        (primaryDiet !== 'Standard' && primaryDiet !== 'Nessuna restrizione') ||
+        primaryNotes.length > 0
+      );
+
+      list.push({
+        id: `primary-${g.id}`,
+        guestId: g.id,
+        isCompanion: false,
+        fullName: g.name,
+        familyName: familyLabel,
+        role: 'Ospite Principale (Referente)',
+        ageCategory: 'Adulto',
+        relationship: 'Capofamiglia',
+        dietary: primaryDiet,
+        intoleranceNotes: primaryNotes,
+        hasSpecialDiet: primaryHasSpecialDiet,
+        hotelBooked: g.hotelBooked || 'In attesa',
+        roomType: g.roomType,
+        transferBooked: g.transferBooked || 'Autonomo',
+        primaryContactName: g.name,
+        primaryContactEmail: g.email || '',
+        primaryContactPhone: g.phone || '',
+        status: g.status
+      });
+
+      // 2. Accompagnatori del nucleo familiare
+      if (Array.isArray(g.companions)) {
+        g.companions.forEach((c, idx) => {
+          const compDiet = c.dietary || 'Standard';
+          const compNotes = (c.intoleranceNotes || c.notes || '').trim();
+          const compHasSpecialDiet = Boolean(
+            (compDiet !== 'Standard' && compDiet !== 'Nessuna restrizione') ||
+            compNotes.length > 0
+          );
+
+          list.push({
+            id: `comp-${c.id || `${g.id}-${idx}`}`,
+            guestId: g.id,
+            isCompanion: true,
+            fullName: c.name,
+            familyName: familyLabel,
+            role: c.ageCategory === 'CHILD' ? 'Bambino (Menu Bimbi)' : 'Accompagnatore',
+            ageCategory: c.ageCategory === 'CHILD' ? 'Bambino' : 'Adulto',
+            relationship: c.relationship || 'Familiare',
+            dietary: compDiet,
+            intoleranceNotes: compNotes,
+            hasSpecialDiet: compHasSpecialDiet,
+            hotelBooked: g.hotelBooked || 'In attesa',
+            roomType: g.roomType,
+            transferBooked: g.transferBooked || 'Autonomo',
+            primaryContactName: g.name,
+            primaryContactEmail: g.email || '',
+            primaryContactPhone: g.phone || '',
+            status: g.status
+          });
+        });
+      }
+    });
+    return list;
+  }, [weddingData.guests]);
+
+  // Statistiche per la cucina del ristorante & banqueting
+  const cateringStats = useMemo(() => {
+    const totalCovers = allIndividualGuests.length;
+    const adults = allIndividualGuests.filter(p => p.ageCategory === 'Adulto').length;
+    const children = allIndividualGuests.filter(p => p.ageCategory === 'Bambino').length;
+    const withSpecialDiet = allIndividualGuests.filter(p => p.hasSpecialDiet).length;
+
+    const celiacs = allIndividualGuests.filter(p => {
+      const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+      return text.includes('celiac') || text.includes('glutin');
+    }).length;
+
+    const lactoseFree = allIndividualGuests.filter(p => {
+      const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+      return text.includes('lattosio') || text.includes('latte');
+    }).length;
+
+    const veg = allIndividualGuests.filter(p => {
+      const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+      return text.includes('vegetar') || text.includes('vegan');
+    }).length;
+
+    const allergies = allIndividualGuests.filter(p => {
+      const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+      return text.includes('allerg') || text.includes('crostacei') || text.includes('frutta secca') || text.includes('nichel') || text.includes('pesce') || text.includes('uova') || text.includes('arachidi');
+    }).length;
+
+    return {
+      totalCovers,
+      adults,
+      children,
+      withSpecialDiet,
+      celiacs,
+      lactoseFree,
+      veg,
+      allergies
+    };
+  }, [allIndividualGuests]);
+
+  // Filtri e modalità di visualizzazione ospiti per la sposa
+  const [guestViewMode, setGuestViewMode] = useState<'individuals' | 'families'>('individuals');
+  const [dietFilter, setDietFilter] = useState<'ALL' | 'SPECIAL' | 'CELIAC' | 'LACTOSE' | 'VEG' | 'CHILDREN'>('ALL');
+  const [showRestaurantPrintModal, setShowRestaurantPrintModal] = useState(false);
+
+  // Lista filtrata singoli coperti
+  const filteredIndividualGuests = useMemo(() => {
+    return allIndividualGuests.filter(p => {
+      const q = guestSearch.toLowerCase().trim();
+      const matchesSearch = !q || 
+        p.fullName.toLowerCase().includes(q) ||
+        p.familyName.toLowerCase().includes(q) ||
+        p.primaryContactEmail.toLowerCase().includes(q) ||
+        p.intoleranceNotes.toLowerCase().includes(q) ||
+        p.dietary.toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+
+      if (dietFilter === 'SPECIAL') return p.hasSpecialDiet;
+      if (dietFilter === 'CELIAC') {
+        const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+        return text.includes('celiac') || text.includes('glutin');
+      }
+      if (dietFilter === 'LACTOSE') {
+        const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+        return text.includes('lattosio') || text.includes('latte');
+      }
+      if (dietFilter === 'VEG') {
+        const text = `${p.dietary} ${p.intoleranceNotes}`.toLowerCase();
+        return text.includes('vegetar') || text.includes('vegan');
+      }
+      if (dietFilter === 'CHILDREN') {
+        return p.ageCategory === 'Bambino';
+      }
+
+      return true;
+    });
+  }, [allIndividualGuests, guestSearch, dietFilter]);
+
   const [isExportingSheets, setIsExportingSheets] = useState(false);
 
+  // 1. Esportazione Google Sheets con Roster Completo Singoli Coperti e Note Ristorante
   const handleExportToGoogleSheets = async () => {
     try {
       setIsExportingSheets(true);
@@ -430,7 +607,7 @@ export default function CouplePortal({
         },
         body: JSON.stringify({
           properties: {
-            title: `Elenco Sposi & Ristorante - ${coupleNames} (${weddingData.weddingCode})`
+            title: `Elenco Coperti & Note Ristorante - ${coupleNames} (${weddingData.weddingCode})`
           }
         })
       });
@@ -444,33 +621,47 @@ export default function CouplePortal({
       const spreadsheetUrl = sheetData.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 
       const rows = [
+        ['📋 SCHEDA BANQUETTO & COPERTI RISTORANTE', `Matrimonio: ${coupleNames}`, `Data: ${weddingDate}`, `Location: ${venue} (${city})`],
         [
-          'Nome Ospite',
-          'Email',
-          'Telefono',
-          'Paese',
+          `Totale Coperti: ${cateringStats.totalCovers}`,
+          `Adulti: ${cateringStats.adults}`,
+          `Bambini (Menu Bimbi): ${cateringStats.children}`,
+          `Con Intolleranze/Diete: ${cateringStats.withSpecialDiet}`,
+          `Celiaci (Senza Glutine): ${cateringStats.celiacs}`,
+          `Senza Lattosio: ${cateringStats.lactoseFree}`,
+          `Vegetariani/Vegani: ${cateringStats.veg}`,
+          `Allergie Gravi: ${cateringStats.allergies}`
+        ],
+        ['', '', '', '', '', '', '', '', '', '', '', '', ''],
+        [
+          'N° Coperto',
+          'Nome & Cognome Invitato',
           'Nucleo Familiare',
-          'Accompagnatori',
-          'Hotel Prenotato',
-          'Tipo Camera',
+          'Ruolo / Categoria Età',
+          'Relazione con Sposi/Nucleo',
+          'Regime Dietetico (Menu)',
+          'INTOLLERANZE & ALLERGIE (NOTE CUCINA)',
+          'Referente Nucleo Familiare',
+          'Telefono Referente',
+          'Email Referente',
+          'Hotel Assegnato',
           'Transfer',
-          'Esperienze & Servizi',
-          'Dieta / Intolleranze / Allergie',
           'Stato RSVP'
         ],
-        ...weddingData.guests.map(g => [
-          g.name,
-          g.email,
-          g.phone || '',
-          g.country || '',
-          g.familyName || 'Nucleo Principale (1)',
-          g.companions ? g.companions.map((c: any) => `${c.name} (${c.relationship})`).join(', ') : '',
-          g.hotelBooked || 'Nessuno',
-          g.roomType || '',
-          g.transferBooked || 'Autonomo',
-          g.serviceBookings ? Object.entries(g.serviceBookings).map(([k, v]: [string, any]) => `${k} (x${v.quantity})`).join('; ') : '',
-          [g.diet, g.specialNeeds, g.companions?.map((c: any) => c.dietary).filter(Boolean).join('; ')].filter(Boolean).join(' | ') || 'Nessuna restrizione',
-          g.status
+        ...allIndividualGuests.map((p, index) => [
+          index + 1,
+          p.fullName,
+          p.familyName,
+          p.role,
+          p.relationship,
+          p.dietary,
+          p.intoleranceNotes || 'Nessuna segnalazione',
+          p.primaryContactName,
+          p.primaryContactPhone,
+          p.primaryContactEmail,
+          p.hotelBooked,
+          p.transferBooked,
+          p.status
         ])
       ];
 
@@ -491,7 +682,7 @@ export default function CouplePortal({
         throw new Error('Errore durante la scrittura dei dati nel foglio.');
       }
 
-      triggerToast('Foglio Google creato e popolato con successo!');
+      triggerToast('Foglio Google con tutti i coperti creato e popolato con successo!');
       window.open(spreadsheetUrl, '_blank');
     } catch (err: any) {
       console.error('Errore export Google Sheets:', err);
@@ -501,39 +692,131 @@ export default function CouplePortal({
     }
   };
 
+  // 2. Esportazione CSV con UTF-8 BOM compatibile con Excel Windows/Mac
   const handleExportCsv = () => {
     try {
-      const headers = ['Nome Ospite', 'Email', 'Telefono', 'Paese', 'Nucleo Familiare', 'Accompagnatori', 'Hotel', 'Camera', 'Transfer', 'Servizi', 'Dieta / Intolleranze', 'Stato RSVP'];
-      const csvRows = [
-        headers.join(','),
-        ...weddingData.guests.map(g => [
-          `"${g.name}"`,
-          `"${g.email}"`,
-          `"${g.phone || ''}"`,
-          `"${g.country || ''}"`,
-          `"${g.familyName || 'Nucleo Principale'}"`,
-          `"${g.companions ? g.companions.map((c: any) => c.name).join(' - ') : ''}"`,
-          `"${g.hotelBooked || 'Nessuno'}"`,
-          `"${g.roomType || ''}"`,
-          `"${g.transferBooked || 'Autonomo'}"`,
-          `"${g.serviceBookings ? Object.keys(g.serviceBookings).join('; ') : ''}"`,
-          `"${[g.diet, g.specialNeeds].filter(Boolean).join(' | ')}"`,
-          `"${g.status}"`
-        ].join(','))
+      const headers = [
+        'N. Coperto',
+        'Nome e Cognome Invitato',
+        'Nucleo Familiare',
+        'Ruolo / Fascia Età',
+        'Relazione / Parentela',
+        'Regime Dietetico',
+        'Intolleranze e Note Cucina',
+        'Referente Nucleo',
+        'Telefono Referente',
+        'Email Referente',
+        'Hotel',
+        'Transfer',
+        'Stato RSVP'
       ];
 
-      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const csvRows = [
+        headers.join(';'),
+        ...allIndividualGuests.map((p, idx) => [
+          idx + 1,
+          `"${p.fullName.replace(/"/g, '""')}"`,
+          `"${p.familyName.replace(/"/g, '""')}"`,
+          `"${p.role.replace(/"/g, '""')}"`,
+          `"${p.relationship.replace(/"/g, '""')}"`,
+          `"${p.dietary.replace(/"/g, '""')}"`,
+          `"${(p.intoleranceNotes || 'Nessuna').replace(/"/g, '""')}"`,
+          `"${p.primaryContactName.replace(/"/g, '""')}"`,
+          `"${p.primaryContactPhone.replace(/"/g, '""')}"`,
+          `"${p.primaryContactEmail.replace(/"/g, '""')}"`,
+          `"${p.hotelBooked.replace(/"/g, '""')}"`,
+          `"${p.transferBooked.replace(/"/g, '""')}"`,
+          `"${p.status.replace(/"/g, '""')}"`
+        ].join(';'))
+      ];
+
+      // UTF-8 BOM per visualizzazione corretta caratteri accentati in Excel
+      const csvContent = '\uFEFF' + csvRows.join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `Elenco_Sposi_${weddingData.weddingCode}_Ristorante.csv`);
+      link.setAttribute('download', `Elenco_Coperti_Ristorante_${weddingData.weddingCode}_${coupleNames.replace(/[\s\W]+/g, '_')}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      triggerToast('File CSV esportato con successo!');
+      triggerToast('File CSV Excel scaricato con tutti i singoli coperti!');
     } catch (e) {
       triggerToast('Errore durante l\'esportazione CSV');
     }
+  };
+
+  // 3. Copia Riepilogo per WhatsApp / Maitre
+  const handleCopyWhatsAppSummary = () => {
+    try {
+      const guestsWithSpecialDiet = allIndividualGuests.filter(p => p.hasSpecialDiet);
+
+      let text = `📋 *SCHEDA RISTORANTE & INTOLLERANZE NOZZE*\n`;
+      text += `👰🤵 *Sposi:* ${coupleNames}\n`;
+      text += `🗓 *Data:* ${new Date(weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
+      text += `📍 *Location:* ${venue} (${city})\n\n`;
+
+      text += `🍽 *RIEPILOGO GENERALE COPERTI:*\n`;
+      text += `• Totale Coperti: ${cateringStats.totalCovers}\n`;
+      text += `• Adulti: ${cateringStats.adults}\n`;
+      text += `• Bambini (Menu Bimbi): ${cateringStats.children}\n`;
+      text += `• Ospiti con Intolleranze/Diete: ${cateringStats.withSpecialDiet}\n`;
+      text += `• Celiaci / Senza Glutine: ${cateringStats.celiacs}\n`;
+      text += `• Senza Lattosio: ${cateringStats.lactoseFree}\n`;
+      text += `• Vegetariani / Vegani: ${cateringStats.veg}\n`;
+      text += `• Allergie segnalate: ${cateringStats.allergies}\n\n`;
+
+      text += `⚠️ *DETTAGLIO INTOLLERANZE & ALLERGIE PER SINGOLO COPERTO (${guestsWithSpecialDiet.length}):*\n`;
+      if (guestsWithSpecialDiet.length === 0) {
+        text += `_Nessuna intolleranza alimentare segnalata dagli invitati._\n`;
+      } else {
+        guestsWithSpecialDiet.forEach((p, idx) => {
+          text += `${idx + 1}. *${p.fullName}* [${p.familyName}] - ${p.ageCategory}\n`;
+          text += `   • Dieta: ${p.dietary}\n`;
+          if (p.intoleranceNotes) {
+            text += `   • Note Cucina: ${p.intoleranceNotes}\n`;
+          }
+        });
+      }
+
+      copyToClipboard(text, 'Riepilogo Ristorante per WhatsApp');
+    } catch (e) {
+      triggerToast('Errore durante la copia del riepilogo');
+    }
+  };
+
+  // 4. Esportazione JSON strutturata
+  const handleExportJson = () => {
+    try {
+      const payload = {
+        weddingCode: weddingData.weddingCode,
+        coupleNames,
+        weddingDate,
+        venue,
+        city,
+        exportedAt: new Date().toISOString(),
+        cateringStats,
+        totalCovers: allIndividualGuests.length,
+        guests: allIndividualGuests
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Elenco_Coperti_Ristorante_${weddingData.weddingCode}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      triggerToast('File JSON scaricato con successo!');
+    } catch (e) {
+      triggerToast('Errore esportazione JSON');
+    }
+  };
+
+  // 5. Stampa Scheda Banchetto per Chef e Maitre
+  const handlePrintRestaurantSheet = () => {
+    setShowRestaurantPrintModal(true);
   };
 
   // Gestione Upload File Immagine Locale per Galleria con Compressione Ottimizzata (< 120KB)
@@ -2411,270 +2694,618 @@ ${coupleNames} ❤️`;
       )}
 
       {/* ========================================================================= */}
-      {/* 5. RIEPILOGO INVITATI & MONITORAGGIO SCELTE (LIVE RSVP)                     */}
+      {/* 5. RIEPILOGO INVITATI & MONITORAGGIO SCELTE (LIVE RSVP & RISTORANTE)       */}
       {/* ========================================================================= */}
       {activeTab === 'guests' && (
         <div className="space-y-8">
           <div className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="border-b border-neutral-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            
+            {/* Header Sezione */}
+            <div className="border-b border-neutral-100 pb-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg font-serif-luxury font-bold text-stone-800 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-indigo-600" />
-                  <span>Riepilogo Invitati & Scelte del Vostro Matrimonio ({weddingData.guests.length})</span>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                  <ChefHat className="w-4 h-4 text-rose-600" />
+                  <span>Gestione Banqueting &amp; Ristorante Nozze</span>
+                </div>
+                <h3 className="text-xl font-serif-luxury font-bold text-stone-900 flex items-center gap-2">
+                  <span>Elenco Coperti, Nuclei Familiari &amp; Intolleranze</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-sans font-bold">
+                    {cateringStats.totalCovers} Coperti Totali
+                  </span>
                 </h3>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  Monitorate in tempo reale gli ospiti registrati, le loro camere, transfer ed eventuali intolleranze alimentari.
+                <p className="text-xs text-neutral-500 mt-1 max-w-2xl">
+                  Roster completo di <strong>ogni singola persona</strong> (ospiti principali e ciascun membro del nucleo familiare) con regime dietetico, fascia d'età e note specifiche per la cucina del ristorante.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <div className="w-full sm:w-64">
                   <input
                     type="text"
                     value={guestSearch}
                     onChange={(e) => setGuestSearch(e.target.value)}
-                    placeholder="Cerca per nome, paese o email..."
-                    className="w-full p-2 text-xs bg-white border border-neutral-300 rounded-lg"
+                    placeholder="Cerca per nome, famiglia, intolleranza..."
+                    className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-stone-800"
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleSaveWeddingChanges({}, 'Lista ospiti e preferenze salvate con successo!')}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-750 text-white text-xs font-semibold hover:bg-stone-700 transition-colors shadow-2xs cursor-pointer shrink-0"
+                  onClick={() => handleSaveWeddingChanges({}, 'Lista ospiti e preferenze sincronizzate con successo!')}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-stone-800 text-white text-xs font-semibold hover:bg-stone-700 transition-colors shadow-2xs cursor-pointer shrink-0"
                 >
-                  <Save className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Salva Ospiti</span>
+                  <Save className="w-3.5 h-3.5 text-stone-300" />
+                  <span>Salva Modifiche</span>
                 </button>
               </div>
             </div>
 
-            {/* KPI Cards Ospiti per gli Sposi */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 text-center">
-                <div className="text-2xl font-bold font-serif-luxury text-indigo-950">
-                  {weddingData.guests.length}
-                </div>
-                <div className="text-[11px] font-semibold text-indigo-700 mt-0.5">
-                  Invitati Registrati
-                </div>
+            {/* KPI Cucina / Catering Ristorante */}
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2.5 flex items-center gap-1.5">
+                <Utensils className="w-3.5 h-3.5 text-stone-700" />
+                <span>Riepilogo Coperti &amp; Diete per il Ristorante:</span>
               </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                <div className="p-3 bg-stone-900 text-white rounded-xl text-center shadow-xs">
+                  <div className="text-xl font-bold font-serif-luxury">{cateringStats.totalCovers}</div>
+                  <div className="text-[10px] font-semibold text-stone-300 uppercase tracking-tight mt-0.5">Coperti Totali</div>
+                </div>
 
-              <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 text-center">
-                <div className="text-2xl font-bold font-serif-luxury text-emerald-950">
-                  {weddingData.guests.filter(g => g.hotelBooked && g.hotelBooked !== '-').length}
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-stone-800">{cateringStats.adults}</div>
+                  <div className="text-[10px] font-semibold text-stone-500 uppercase tracking-tight mt-0.5">Adulti</div>
                 </div>
-                <div className="text-[11px] font-semibold text-emerald-700 mt-0.5">
-                  Alloggi in Convenzione
-                </div>
-              </div>
 
-              <div className="p-4 bg-stone-50/50 rounded-xl border border-stone-100 text-center">
-                <div className="text-2xl font-bold font-serif-luxury text-stone-950">
-                  {weddingData.guests.filter(g => g.transferBooked && !g.transferBooked.includes('Autonomo')).length}
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-amber-900">{cateringStats.children}</div>
+                  <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-tight mt-0.5">Menu Bimbi</div>
                 </div>
-                <div className="text-[11px] font-semibold text-stone-700 mt-0.5">
-                  Navette / Transfer
-                </div>
-              </div>
 
-              <div className="p-4 bg-rose-50/50 rounded-xl border border-rose-100 text-center">
-                <div className="text-2xl font-bold font-serif-luxury text-rose-950">
-                  {weddingData.guests.filter(g => g.diet && g.diet !== 'Nessuna restrizione').length}
+                <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-rose-900">{cateringStats.withSpecialDiet}</div>
+                  <div className="text-[10px] font-semibold text-rose-700 uppercase tracking-tight mt-0.5">Note Cucina</div>
                 </div>
-                <div className="text-[11px] font-semibold text-rose-700 mt-0.5">
-                  Diete Speciali / Allergie
+
+                <div className="p-3 bg-orange-50 rounded-xl border border-orange-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-orange-950">{cateringStats.celiacs}</div>
+                  <div className="text-[10px] font-semibold text-orange-700 uppercase tracking-tight mt-0.5">Celiaci / Glutine</div>
+                </div>
+
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-blue-950">{cateringStats.lactoseFree}</div>
+                  <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-tight mt-0.5">No Lattosio</div>
+                </div>
+
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-emerald-950">{cateringStats.veg}</div>
+                  <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-tight mt-0.5">Veg / Vegan</div>
+                </div>
+
+                <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-center">
+                  <div className="text-xl font-bold font-serif-luxury text-purple-950">{cateringStats.allergies}</div>
+                  <div className="text-[10px] font-semibold text-purple-700 uppercase tracking-tight mt-0.5">Allergie Gravi</div>
                 </div>
               </div>
             </div>
 
-            {/* Esportazione Elenco Sposi per il Ristorante (Google Sheets & CSV) */}
-            <div className="p-4 bg-stone-750 text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                  <ExternalLink className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold">Esporta Elenco Sposi (Nucleo Familiare &amp; Intolleranze)</div>
-                  <p className="text-xs text-neutral-300">Genera un Foglio Google o scarica il file CSV completo da consegnare al ristorante o allo staff del banchetto.</p>
+            {/* BARRA MULTI-FORMATO ESPORTAZIONE PER LA SPOSA */}
+            <div className="p-5 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-800 text-white rounded-2xl shadow-md space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/15">
+                    <Download className="w-5 h-5 text-amber-300" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold flex items-center gap-2">
+                      <span>Esporta Elenco Ospiti in Vari Formati (per Ristorante &amp; Catering)</span>
+                    </div>
+                    <p className="text-xs text-neutral-300">
+                      Include ogni singolo invitato, nucleo familiare di appartenenza, fascia d'età e note dettagliate per la cucina.
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+
+              {/* Pulsanti di esportazione multi-formato */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
+                {/* 1. Google Fogli */}
                 <button
                   type="button"
                   onClick={handleExportToGoogleSheets}
                   disabled={isExportingSheets}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all disabled:opacity-50"
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  title="Crea e popola direttamente un foglio Google Fogli online"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>{isExportingSheets ? 'Creazione Google Sheet...' : 'Esporta in Google Fogli'}</span>
+                  <ExternalLink className="w-4 h-4 text-emerald-200 shrink-0" />
+                  <span>{isExportingSheets ? 'Creazione in corso...' : 'Google Fogli'}</span>
                 </button>
 
+                {/* 2. Excel CSV */}
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  className="px-4 py-2.5 rounded-xl bg-stone-600 hover:bg-stone-500 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all"
+                  className="px-3.5 py-2.5 rounded-xl bg-stone-700 hover:bg-stone-650 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all border border-stone-600"
+                  title="Scarica file CSV compatibile con Excel su Windows e Mac"
                 >
-                  <FileText className="w-4 h-4 text-amber-400" />
-                  <span>Scarica CSV (Excel)</span>
+                  <FileText className="w-4 h-4 text-amber-300 shrink-0" />
+                  <span>Scarica Excel (CSV)</span>
+                </button>
+
+                {/* 3. Stampa Scheda Ristorante / PDF */}
+                <button
+                  type="button"
+                  onClick={handlePrintRestaurantSheet}
+                  className="px-3.5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all"
+                  title="Apri e stampa la scheda da consegnare a mano al Maitre e allo Chef"
+                >
+                  <Printer className="w-4 h-4 text-rose-200 shrink-0" />
+                  <span>Stampa Scheda / PDF</span>
+                </button>
+
+                {/* 4. Copia per WhatsApp Maitre */}
+                <button
+                  type="button"
+                  onClick={handleCopyWhatsAppSummary}
+                  className="px-3.5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all"
+                  title="Copia il riepilogo con intolleranze formattato per inviarlo via WhatsApp"
+                >
+                  <Copy className="w-4 h-4 text-teal-200 shrink-0" />
+                  <span>Copia per WhatsApp</span>
+                </button>
+
+                {/* 5. JSON Dati Strutturati */}
+                <button
+                  type="button"
+                  onClick={handleExportJson}
+                  className="px-3.5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-750 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all border border-stone-700"
+                  title="Esporta il file dati JSON completo"
+                >
+                  <Download className="w-4 h-4 text-sky-300 shrink-0" />
+                  <span>Esporta JSON</span>
                 </button>
               </div>
             </div>
 
-            {/* Tabella Invitati (Responsive: Cards su mobile, Table su desktop) */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-neutral-200 text-neutral-500 font-semibold bg-neutral-50/60">
-                    <th className="py-2.5 px-3">Ospite</th>
-                    <th className="py-2.5 px-3">Origine</th>
-                    <th className="py-2.5 px-3">Alloggio Prenotato</th>
-                    <th className="py-2.5 px-3">Transfer / Volo</th>
-                    <th className="py-2.5 px-3">Esperienze & Servizi</th>
-                    <th className="py-2.5 px-3">Dieta & Allergie</th>
-                    <th className="py-2.5 px-3">Stato</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {filteredGuests.map((g) => (
-                    <tr key={g.id} className="hover:bg-neutral-50 transition-colors">
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-stone-800">{g.name}</div>
-                        <div className="text-[11px] text-neutral-400 font-mono">{g.email}</div>
-                        {g.familyName && <div className="text-[10px] text-indigo-600 font-bold mt-1 uppercase tracking-tight">Nucleo: {g.familyName}</div>}
-                        {g.companions && g.companions.length > 0 && (
-                          <div className="text-[10px] text-stone-500 mt-0.5 leading-tight">
-                            +{g.companions.length} accompagnatori: <span className="font-medium text-stone-600">{g.companions.map((c: any) => c.name).join(', ')}</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="flex items-center gap-1.5 text-neutral-700">
-                          <span>{g.flag}</span>
-                          <span>{g.country}</span>
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="font-semibold text-stone-700">{g.hotelBooked || 'In attesa'}</div>
-                        {g.roomType && g.roomType !== '-' && (
-                          <div className="text-[10px] text-neutral-500">{g.roomType}</div>
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="text-stone-700">{g.transferBooked || 'Autonomo'}</div>
-                        {g.flight && (
-                          <div className="text-[10px] text-neutral-500 font-mono">✈️ {g.flight}</div>
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="space-y-1.5">
-                          {g.serviceBookings && Object.entries(g.serviceBookings).length > 0 ? (
-                            Object.entries(g.serviceBookings).map(([serviceId, booking]) => (
-                              <div key={serviceId} className="text-[10px] leading-tight border-b border-neutral-100 pb-1 last:border-0">
-                                <div className="font-bold text-stone-800 flex items-center justify-between">
-                                  <span>{serviceId.replace(/-/g, ' ').toUpperCase()}</span>
-                                  <span className="bg-stone-100 px-1 rounded">x{booking.quantity}</span>
-                                </div>
-                                {booking.notes && <div className="text-neutral-500 italic mt-0.5">Note: {booking.notes}</div>}
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-neutral-400 italic">Nessun servizio prenotato</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                          g.diet && g.diet !== 'Nessuna restrizione'
-                            ? 'bg-stone-100 text-stone-800 border border-stone-200'
-                            : 'bg-neutral-100 text-neutral-600'
-                        }`}>
-                          {g.diet || 'Nessuna'}
-                        </span>
-                        {g.specialNeeds && (
-                          <div className="text-[9px] text-amber-700 italic mt-1 leading-tight">
-                            Note: {g.specialNeeds}
-                          </div>
-                        )}
-                        {g.companions?.some((c: any) => c.dietary && c.dietary !== 'Standard') && (
-                          <div className="text-[9px] text-rose-600 mt-1 font-medium border-t border-rose-100 pt-1">
-                            Diete Accompagnatori: {g.companions.filter((c: any) => c.dietary !== 'Standard').map((c: any) => `${c.name}: ${c.dietary}`).join('; ')}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          {g.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* SELETTORE VISTA E FILTRI DIETETICI */}
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+                {/* Toggle Vista: Singoli Coperti vs Nuclei Familiari */}
+                <div className="inline-flex p-1 rounded-xl bg-stone-100 border border-stone-200 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setGuestViewMode('individuals')}
+                    className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                      guestViewMode === 'individuals'
+                        ? 'bg-white text-stone-900 shadow-xs font-bold'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <Utensils className="w-3.5 h-3.5" />
+                    <span>Elenco Singoli Coperti ({allIndividualGuests.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGuestViewMode('families')}
+                    className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                      guestViewMode === 'families'
+                        ? 'bg-white text-stone-900 shadow-xs font-bold'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Vista per Nuclei Familiari ({weddingData.guests.length})</span>
+                  </button>
+                </div>
+
+                <div className="text-xs text-neutral-500">
+                  Visualizzati: <span className="font-bold text-stone-800">{filteredIndividualGuests.length}</span> di {allIndividualGuests.length} coperti
+                </div>
+              </div>
+
+              {/* Filtri Rapidi Dietetici */}
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>Filtra:</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setDietFilter('ALL')}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors cursor-pointer ${
+                    dietFilter === 'ALL'
+                      ? 'bg-stone-900 text-white font-bold'
+                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                  }`}
+                >
+                  Tutti ({allIndividualGuests.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDietFilter('SPECIAL')}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    dietFilter === 'SPECIAL'
+                      ? 'bg-rose-700 text-white font-bold'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
+                  }`}
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Solo con Intolleranze/Note ({cateringStats.withSpecialDiet})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDietFilter('CELIAC')}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors cursor-pointer ${
+                    dietFilter === 'CELIAC'
+                      ? 'bg-orange-700 text-white font-bold'
+                      : 'bg-orange-50 text-orange-800 border border-orange-200 hover:bg-orange-100'
+                  }`}
+                >
+                  🌾 Celiaci ({cateringStats.celiacs})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDietFilter('LACTOSE')}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors cursor-pointer ${
+                    dietFilter === 'LACTOSE'
+                      ? 'bg-blue-700 text-white font-bold'
+                      : 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
+                  }`}
+                >
+                  🥛 No Lattosio ({cateringStats.lactoseFree})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDietFilter('VEG')}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors cursor-pointer ${
+                    dietFilter === 'VEG'
+                      ? 'bg-emerald-700 text-white font-bold'
+                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  🥗 Veg / Vegan ({cateringStats.veg})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDietFilter('CHILDREN')}
+                  className={`px-3 py-1 rounded-full font-medium transition-colors cursor-pointer ${
+                    dietFilter === 'CHILDREN'
+                      ? 'bg-amber-700 text-white font-bold'
+                      : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                  }`}
+                >
+                  👶 Bambini ({cateringStats.children})
+                </button>
+              </div>
             </div>
 
-            {/* View Mobile: Cards */}
-            <div className="sm:hidden space-y-4">
-              {filteredGuests.map((g) => (
-                <div key={g.id} className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-stone-800 text-sm">{g.name}</div>
-                      <div className="text-[11px] text-neutral-400 font-mono">{g.email}</div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      {g.status}
-                    </span>
-                  </div>
+            {/* ========================================================= */}
+            {/* VISTA 1: TABELLA COMPLETA SINGOLI COPERTI (PER RISTORANTE) */}
+            {/* ========================================================= */}
+            {guestViewMode === 'individuals' && (
+              <div className="space-y-4">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-200">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-neutral-200 text-neutral-600 font-bold bg-neutral-50/80">
+                        <th className="py-3 px-3 w-10 text-center">N°</th>
+                        <th className="py-3 px-3">Nome &amp; Cognome Invitato</th>
+                        <th className="py-3 px-3">Nucleo Familiare</th>
+                        <th className="py-3 px-3">Ruolo / Fascia</th>
+                        <th className="py-3 px-3">Regime Dietetico</th>
+                        <th className="py-3 px-4 min-w-[240px]">Note Intolleranze Cucina</th>
+                        <th className="py-3 px-3">Referente &amp; Recapito</th>
+                        <th className="py-3 px-3 text-center">Stato</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {filteredIndividualGuests.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-neutral-400 italic">
+                            Nessun invitato corrisponde ai filtri selezionati.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredIndividualGuests.map((p, idx) => (
+                          <tr 
+                            key={p.id} 
+                            className={`hover:bg-neutral-50/80 transition-colors ${
+                              p.hasSpecialDiet ? 'bg-rose-50/20' : ''
+                            }`}
+                          >
+                            <td className="py-3 px-3 text-center text-neutral-400 font-mono text-[11px]">
+                              {idx + 1}
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-bold text-stone-900 text-sm">
+                                {p.fullName}
+                              </div>
+                              <div className="text-[10px] text-neutral-400">
+                                {p.relationship}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200/80 text-indigo-900 font-semibold text-[11px]">
+                                <Users className="w-3 h-3 text-indigo-600 shrink-0" />
+                                <span>{p.familyName}</span>
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              {p.ageCategory === 'Bambino' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                                  <span>👶</span>
+                                  <span>Menu Bimbi</span>
+                                </span>
+                              ) : p.isCompanion ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-medium text-[10px]">
+                                  Accompagnatore
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-stone-800 text-white font-semibold text-[10px]">
+                                  Capofamiglia
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                p.dietary === 'Standard'
+                                  ? 'bg-neutral-100 text-neutral-700'
+                                  : p.dietary.toLowerCase().includes('celiac')
+                                  ? 'bg-orange-100 text-orange-900 font-bold border border-orange-200'
+                                  : p.dietary.toLowerCase().includes('lattosio')
+                                  ? 'bg-blue-100 text-blue-900 font-bold border border-blue-200'
+                                  : p.dietary.toLowerCase().includes('veg')
+                                  ? 'bg-emerald-100 text-emerald-900 font-bold border border-emerald-200'
+                                  : 'bg-rose-100 text-rose-900 font-bold border border-rose-200'
+                              }`}>
+                                {p.dietary}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {p.intoleranceNotes ? (
+                                <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-950 font-medium text-[11px] leading-tight flex items-start gap-1.5 shadow-2xs">
+                                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <span className="font-bold text-rose-800 block text-[10px] uppercase tracking-wide">Attenzione Cucina:</span>
+                                    <span>{p.intoleranceNotes}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-neutral-400 italic text-[11px]">Nessuna restrizione</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-[11px]">
+                              <div className="font-semibold text-stone-800">{p.primaryContactName}</div>
+                              {p.primaryContactPhone && (
+                                <div className="text-neutral-500 font-mono mt-0.5">📞 {p.primaryContactPhone}</div>
+                              )}
+                              <div className="text-neutral-400 font-mono text-[10px]">{p.primaryContactEmail}</div>
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                {p.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-[11px]">
-                    <div className="space-y-1">
-                      <span className="text-neutral-400 uppercase font-bold text-[9px]">Origine</span>
-                      <div className="flex items-center gap-1.5 text-stone-700">
-                        <span>{g.flag}</span>
-                        <span>{g.country}</span>
+                {/* Mobile Cards for Individual Guests */}
+                <div className="md:hidden space-y-3">
+                  {filteredIndividualGuests.length === 0 ? (
+                    <div className="p-6 text-center text-neutral-400 bg-neutral-50 rounded-2xl italic text-xs">
+                      Nessun invitato corrisponde ai filtri selezionati.
+                    </div>
+                  ) : (
+                    filteredIndividualGuests.map((p, idx) => (
+                      <div 
+                        key={p.id}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          p.hasSpecialDiet 
+                            ? 'bg-rose-50/30 border-rose-200' 
+                            : 'bg-white border-neutral-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-neutral-400">#{idx + 1}</span>
+                              <span className="font-bold text-stone-900 text-sm">{p.fullName}</span>
+                              {p.ageCategory === 'Bambino' && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[9px] font-bold">
+                                  Bambino
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-indigo-700 font-semibold mt-0.5">
+                              {p.familyName} • {p.relationship}
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {p.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-neutral-100 mb-2">
+                          <div>
+                            <span className="text-neutral-400 text-[10px] uppercase font-bold block">Dieta Menu</span>
+                            <span className="font-bold text-stone-800">{p.dietary}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-400 text-[10px] uppercase font-bold block">Referente</span>
+                            <span className="text-neutral-700">{p.primaryContactName}</span>
+                          </div>
+                        </div>
+
+                        {p.intoleranceNotes ? (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium flex items-start gap-1.5">
+                            <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="block text-[10px] text-rose-800 uppercase">Note Cucina &amp; Intolleranze:</strong>
+                              <span>{p.intoleranceNotes}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-neutral-400 italic">Nessuna nota per la cucina.</div>
+                        )}
                       </div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-neutral-400 uppercase font-bold text-[9px]">Alloggio</span>
-                      <div className="font-semibold text-stone-700">{g.hotelBooked || 'In attesa'}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-neutral-400 uppercase font-bold text-[9px]">Transfer</span>
-                      <div className="text-stone-700">{g.transferBooked || 'Autonomo'}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-neutral-400 uppercase font-bold text-[9px]">Dieta</span>
-                      <div className="font-semibold text-stone-800">{g.diet || 'Nessuna'}</div>
-                    </div>
-                  </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
-                  {g.serviceBookings && Object.entries(g.serviceBookings).length > 0 && (
-                    <div className="pt-2 border-t border-neutral-200 space-y-1">
-                      <span className="text-neutral-400 uppercase font-bold text-[9px]">Servizi Prenotati</span>
-                      <div className="space-y-1">
-                        {Object.entries(g.serviceBookings).map(([serviceId, booking]) => (
-                          <div key={serviceId} className="flex justify-between text-[10px]">
-                            <span className="font-bold text-stone-800 uppercase">{serviceId.replace(/-/g, ' ')}</span>
-                            <span className="bg-stone-100 px-1 rounded">x{booking.quantity}</span>
+            {/* ========================================================= */}
+            {/* VISTA 2: RAGGRUPPATA PER NUCLEI FAMILIARI                  */}
+            {/* ========================================================= */}
+            {guestViewMode === 'families' && (
+              <div className="space-y-4">
+                {weddingData.guests.map((g) => {
+                  const companions = g.companions || [];
+                  const familyCoversCount = 1 + companions.length;
+                  const familyHasSpecialNeeds = Boolean(
+                    (g.diet && g.diet !== 'Standard' && g.diet !== 'Nessuna restrizione') ||
+                    (g.specialNeeds && g.specialNeeds.trim() !== '') ||
+                    companions.some(c => (c.dietary && c.dietary !== 'Standard') || (c.intoleranceNotes && c.intoleranceNotes.trim() !== ''))
+                  );
+
+                  return (
+                    <div 
+                      key={g.id} 
+                      className={`p-5 rounded-2xl border transition-all ${
+                        familyHasSpecialNeeds
+                          ? 'bg-rose-50/20 border-rose-200'
+                          : 'bg-white border-neutral-200 shadow-2xs'
+                      }`}
+                    >
+                      {/* Intestazione Famiglia */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
+                            <Users className="w-5 h-5 text-indigo-700" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-stone-900 text-base">
+                                {g.familyName || `Nucleo Familiare di ${g.name}`}
+                              </h4>
+                              <span className="px-2.5 py-0.5 rounded-full bg-stone-900 text-white text-xs font-bold">
+                                {familyCoversCount} {familyCoversCount === 1 ? 'Coperto' : 'Coperti'}
+                              </span>
+                            </div>
+                            <div className="text-xs text-neutral-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                              <span>Referente: <strong>{g.name}</strong></span>
+                              {g.phone && <span>• 📞 {g.phone}</span>}
+                              <span>• ✉️ {g.email}</span>
+                              <span>• {g.flag} {g.country}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            RSVP: {g.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Lista Membri del Nucleo Familiare con note individuali */}
+                      <div className="pt-4 space-y-2.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                          Componenti del Nucleo &amp; Specifiche Dietetiche:
+                        </div>
+
+                        {/* 1. Capofamiglia */}
+                        <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-stone-900 text-xs">{g.name}</span>
+                              <span className="px-2 py-0.5 rounded bg-stone-200 text-stone-800 text-[10px] font-semibold">
+                                Capofamiglia / Adulto
+                              </span>
+                            </div>
+                            <div className="text-xs text-neutral-600">
+                              Dieta: <strong className="text-stone-800">{g.diet || 'Standard'}</strong>
+                            </div>
+                          </div>
+
+                          {g.specialNeeds ? (
+                            <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium max-w-md">
+                              <strong className="text-[10px] uppercase text-rose-800 block">Note Intolleranze:</strong>
+                              <span>{g.specialNeeds}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-neutral-400 italic">Nessuna intolleranza</span>
+                          )}
+                        </div>
+
+                        {/* 2. Accompagnatori */}
+                        {companions.map((c, cIdx) => (
+                          <div key={c.id || cIdx} className="p-3 rounded-xl bg-white border border-neutral-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-stone-900 text-xs">{c.name}</span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  c.ageCategory === 'CHILD'
+                                    ? 'bg-amber-100 text-amber-900 font-bold'
+                                    : 'bg-stone-100 text-stone-700'
+                                }`}>
+                                  {c.ageCategory === 'CHILD' ? '👶 Bambino (Menu Bimbi)' : 'Adulto'} • {c.relationship || 'Accompagnatore'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-neutral-600">
+                                Dieta: <strong className="text-stone-800">{c.dietary || 'Standard'}</strong>
+                              </div>
+                            </div>
+
+                            {(c.intoleranceNotes || c.notes) ? (
+                              <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium max-w-md">
+                                <strong className="text-[10px] uppercase text-rose-800 block">Note Intolleranze:</strong>
+                                <span>{c.intoleranceNotes || c.notes}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-neutral-400 italic">Nessuna intolleranza</span>
+                            )}
                           </div>
                         ))}
                       </div>
+
+                      {/* Logistica Nucleo (Hotel, Transfer) */}
+                      <div className="mt-4 pt-3 border-t border-neutral-100 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-neutral-400 text-[10px] uppercase font-bold block">Alloggio</span>
+                          <span className="font-semibold text-stone-800">{g.hotelBooked || 'In attesa'}</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-400 text-[10px] uppercase font-bold block">Transfer</span>
+                          <span className="font-semibold text-stone-800">{g.transferBooked || 'Autonomo'}</span>
+                        </div>
+                        {g.flight && (
+                          <div>
+                            <span className="text-neutral-400 text-[10px] uppercase font-bold block">Volo</span>
+                            <span className="font-mono text-stone-700">✈️ {g.flight}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  
-                  {g.familyName && (
-                    <div className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg inline-block">
-                      Nucleo: {g.familyName}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Box Assistenza Valeria per gli Sposi */}
             <div className="p-4 bg-stone-50/70 rounded-2xl border border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-stone-750 text-white font-bold flex items-center justify-center font-serif-luxury shrink-0">
+                <div className="w-10 h-10 rounded-full bg-stone-850 text-white font-bold flex items-center justify-center font-serif-luxury shrink-0">
                   V
                 </div>
                 <div>
@@ -2691,13 +3322,144 @@ ${coupleNames} ❤️`;
                 href={`https://wa.me/${adminSettings.valeriaPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Ciao Valeria, siamo ${coupleNames} dal portale sposi! Avremmo bisogno di un aggiornamento sulla logistica del matrimonio.`)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-750 text-white text-xs font-semibold hover:bg-stone-700 transition-colors shadow-2xs shrink-0"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-850 text-white text-xs font-semibold hover:bg-stone-750 transition-colors shadow-2xs shrink-0"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Scrivi a Valeria su WhatsApp</span>
               </a>
             </div>
           </div>
+
+          {/* ========================================================================= */}
+          {/* MODALE DI STAMPA SCHEDA RISTORANTE & BANQUETTO PER MAITRE / CHEF          */}
+          {/* ========================================================================= */}
+          {showRestaurantPrintModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-neutral-200 p-6 sm:p-8 space-y-6">
+                
+                {/* Header Modale */}
+                <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <ChefHat className="w-6 h-6 text-rose-700" />
+                    <div>
+                      <h3 className="text-lg font-serif-luxury font-bold text-stone-900">
+                        Scheda Banchetto &amp; Coperti Ristorante
+                      </h3>
+                      <p className="text-xs text-neutral-500">
+                        Anteprima di stampa ufficiale da consegnare al Maitre e alla Cucina.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRestaurantPrintModal(false)}
+                    className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Scheda Banqueting Stampabile */}
+                <div id="printable-catering-sheet" className="p-6 bg-stone-50/50 rounded-2xl border border-neutral-200 space-y-5">
+                  <div className="text-center border-b border-stone-200 pb-4">
+                    <div className="text-xs uppercase tracking-widest font-bold text-stone-500">Banchetto Nuziale</div>
+                    <h2 className="text-2xl font-serif-luxury font-bold text-stone-900 mt-1">{coupleNames}</h2>
+                    <div className="text-xs text-stone-600 mt-1 flex items-center justify-center gap-4 flex-wrap">
+                      <span>Data: <strong>{new Date(weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</strong></span>
+                      <span>•</span>
+                      <span>Location: <strong>{venue} ({city})</strong></span>
+                      <span>•</span>
+                      <span>Codice: <strong>{weddingData.weddingCode}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Summary Bar */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-stone-200 text-center">
+                    <div>
+                      <div className="text-2xl font-bold font-serif-luxury text-stone-900">{cateringStats.totalCovers}</div>
+                      <div className="text-[10px] uppercase font-bold text-stone-500">Totale Coperti</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold font-serif-luxury text-stone-900">{cateringStats.adults}</div>
+                      <div className="text-[10px] uppercase font-bold text-stone-500">Adulti</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold font-serif-luxury text-amber-800">{cateringStats.children}</div>
+                      <div className="text-[10px] uppercase font-bold text-amber-600">Menu Bambini</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold font-serif-luxury text-rose-800">{cateringStats.withSpecialDiet}</div>
+                      <div className="text-[10px] uppercase font-bold text-rose-600">Diete / Intolleranze</div>
+                    </div>
+                  </div>
+
+                  {/* Sezione Evidenza Allergie Gravi / Celiachia */}
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-rose-900 uppercase tracking-wide">
+                      <ShieldAlert className="w-4 h-4 text-rose-700" />
+                      <span>Avvisi Critici per la Cucina (Celiachia &amp; Allergie):</span>
+                    </div>
+                    <div className="text-xs text-rose-800 space-y-1">
+                      <div>• Celiaci / Senza Glutine: <strong>{cateringStats.celiacs}</strong> (Attenzione a contaminazioni crociate).</div>
+                      <div>• Intolleranti al Lattosio: <strong>{cateringStats.lactoseFree}</strong> (No burro, formaggi, derivati).</div>
+                      <div>• Vegetariani / Vegani: <strong>{cateringStats.veg}</strong>.</div>
+                      <div>• Altre Allergie segnalate: <strong>{cateringStats.allergies}</strong>.</div>
+                    </div>
+                  </div>
+
+                  {/* Tabella Stampabile Coperti */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-stone-300 text-stone-800 font-bold bg-stone-100">
+                          <th className="py-2 px-2 w-8">#</th>
+                          <th className="py-2 px-3">Ospite</th>
+                          <th className="py-2 px-3">Nucleo</th>
+                          <th className="py-2 px-2">Fascia</th>
+                          <th className="py-2 px-3">Menu / Dieta</th>
+                          <th className="py-2 px-3">Note Cucina &amp; Intolleranze</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200">
+                        {allIndividualGuests.map((p, idx) => (
+                          <tr key={p.id} className={p.hasSpecialDiet ? 'bg-rose-50/40 font-medium' : ''}>
+                            <td className="py-2 px-2 text-stone-400">{idx + 1}</td>
+                            <td className="py-2 px-3 font-bold text-stone-900">{p.fullName}</td>
+                            <td className="py-2 px-3 text-stone-700">{p.familyName}</td>
+                            <td className="py-2 px-2 text-stone-700">{p.ageCategory}</td>
+                            <td className="py-2 px-3 text-stone-800">{p.dietary}</td>
+                            <td className="py-2 px-3 text-rose-900 font-semibold">{p.intoleranceNotes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Footer Modale con Azione Stampa */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowRestaurantPrintModal(false)}
+                    className="px-4 py-2.5 rounded-xl border border-neutral-300 text-stone-700 text-xs font-semibold hover:bg-neutral-50 transition-colors cursor-pointer"
+                  >
+                    Chiudi
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.print();
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all"
+                  >
+                    <Printer className="w-4 h-4 text-rose-300" />
+                    <span>Stampa Scheda Banchetto Ora</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

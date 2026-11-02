@@ -116,12 +116,22 @@ export interface GuestItem {
   hotelPaymentSentAt?: string;
   notesByValeria?: string; // Note modificabili da Valeria
   itemPaymentStatuses?: Record<string, 'PAID' | 'PENDING'>; // Stato pagamento per singolo servizio/prodotto
-  companions?: Array<{ id: string; name: string; relationship: string; dietary: string; notes?: string }>;
+  companions?: FamilyCompanion[];
   familyName?: string;
   specialNeeds?: string;
   allergies?: string;
   intolerances?: string;
   serviceBookings?: Record<string, { quantity: number; notes?: string; totalPrice: number }>;
+}
+
+export interface FamilyCompanion {
+  id: string;
+  name: string; // Nome e Cognome
+  relationship: string; // Coniuge, Partner, Figlio/a, Genitore, Amico/a, Altro
+  dietary: string; // Standard, Celiaco, Senza Lattosio, Vegetariano, Vegano, ecc.
+  notes?: string;
+  intoleranceNotes?: string; // Note dettagliate intolleranze e allergie della singola persona
+  ageCategory?: 'Adulto' | 'Bambino' | 'Neonato' | string;
 }
 
 // Richieste su misura / desideri dell'ospite da impacchettare in proposta
