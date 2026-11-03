@@ -56,6 +56,7 @@ import {
   AdminSettings,
   FamilyCompanion
 } from '../data/weddingStore';
+import { formatDateToItalian, formatDateToItalianLong } from '../utils/dateUtils';
 
 interface GuestPortalProps {
   weddingData: WeddingData;
@@ -525,6 +526,9 @@ export default function GuestPortal({
 
   // Input Chat con Valeria
   const [newChatMessage, setNewChatMessage] = useState('');
+
+  // Modale Lightbox Anteprima Foto Ospiti
+  const [previewGuestPhoto, setPreviewGuestPhoto] = useState<any | null>(null);
 
   // Stato Invio Voucher Email
   const [emailSentStatus, setEmailSentStatus] = useState<{ sent: boolean; message: string; timestamp?: string } | null>(null);
@@ -1339,7 +1343,7 @@ export default function GuestPortal({
                 {weddingData.coupleNames} {weddingData.couplePhone && `(${weddingData.couplePhone})`} · Informazioni & Dettagli
               </h2>
               <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 mt-2">
-                <span>🗓 {new Date(weddingData.weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                <span>🗓 {formatDateToItalianLong(weddingData.weddingDate)}</span>
                 <span>•</span>
                 <span>📍 {weddingData.venue}, {weddingData.city}</span>
                 <span>•</span>
@@ -1405,17 +1409,26 @@ export default function GuestPortal({
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {weddingData.galleryPhotos.map((photo) => (
-                  <div key={photo.id} className="rounded-xl overflow-hidden border border-neutral-200 bg-stone-750 group">
-                    <div className="aspect-4/3 overflow-hidden">
+                  <div 
+                    key={photo.id} 
+                    className="rounded-2xl overflow-hidden border border-neutral-200 bg-stone-900 group shadow-2xs hover:shadow-md transition-all flex flex-col cursor-pointer"
+                    onClick={() => setPreviewGuestPhoto(photo)}
+                  >
+                    <div className="h-60 sm:h-64 w-full bg-stone-950/90 p-2 flex items-center justify-center overflow-hidden relative">
                       <img 
                         src={photo.url} 
                         alt={photo.caption || 'Foto sposi'} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-xs group-hover:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
                       />
+                      <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                        <span className="px-3 py-1.5 rounded-full bg-white/95 text-stone-900 text-xs font-bold flex items-center gap-1.5 shadow-md">
+                          <span>🔍 Ingrandisci Formato Originale</span>
+                        </span>
+                      </div>
                     </div>
                     {photo.caption && (
-                      <div className="p-2.5 bg-white text-[11px] font-semibold text-stone-700 truncate border-t border-neutral-100">
+                      <div className="p-3 bg-white text-xs font-bold text-stone-800 truncate border-t border-neutral-100">
                         {photo.caption}
                       </div>
                     )}
@@ -3855,6 +3868,43 @@ export default function GuestPortal({
               >
                 <span>Visualizza Scheda Dettaglio Scelte</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL LIGHTBOX FOTO INGRANDITA FORMATO ORIGINALE PER OSPITI              */}
+      {/* ========================================================================= */}
+      {previewGuestPhoto && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xs p-4 animate-fade-in"
+          onClick={() => setPreviewGuestPhoto(null)}
+        >
+          <div 
+            className="max-w-4xl w-full bg-stone-900 rounded-2xl overflow-hidden shadow-2xl border border-white/20 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewGuestPhoto(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/80 text-white flex items-center justify-center hover:bg-rose-600 transition-colors cursor-pointer"
+              title="Chiudi ingrandimento"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
+
+            <div className="max-h-[80vh] min-h-[280px] bg-black p-3 flex items-center justify-center overflow-hidden">
+              <img 
+                src={previewGuestPhoto.url} 
+                alt={previewGuestPhoto.caption || 'Foto sposi'} 
+                className="max-w-full max-h-[78vh] w-auto h-auto object-contain rounded-lg shadow-lg"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            <div className="p-4 bg-stone-800 text-white flex items-center justify-between text-xs border-t border-white/10">
+              <span className="font-semibold text-sm">{previewGuestPhoto.caption || 'Foto del matrimonio'}</span>
+              <span className="text-neutral-400 font-mono text-[11px]">Formato originale integro</span>
             </div>
           </div>
         </div>

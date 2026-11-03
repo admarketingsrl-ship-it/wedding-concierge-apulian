@@ -55,6 +55,7 @@ import {
   parseWeddingImportJson, 
   performCascadeDeleteWedding 
 } from '../utils/weddingExport';
+import { formatDateToItalian, ensureItalianDateFormat, formatDateToItalianLong } from '../utils/dateUtils';
 
 interface SocioItem {
   id: string;

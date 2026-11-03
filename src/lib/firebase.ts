@@ -489,3 +489,44 @@ export function subscribeToWishesFirestore(
   return unsubscribe;
 }
 
+/**
+ * Elimina tutti i desideri correlati a un codice matrimonio da Firestore
+ */
+export async function deleteWishesByWeddingCodeFromFirestore(weddingCode: string): Promise<void> {
+  if (!weddingCode) return;
+  const normTarget = weddingCode.trim().toUpperCase().replace(/[\s\-_]+/g, '');
+  try {
+    const snapshot = await getDocs(collection(db, 'wishes'));
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      const code = data?.weddingCode || '';
+      if (code.trim().toUpperCase().replace(/[\s\-_]+/g, '') === normTarget) {
+        await deleteDoc(doc(db, 'wishes', docSnap.id));
+      }
+    }
+  } catch (error) {
+    console.warn('Errore cancellazione desideri da Firestore:', error);
+  }
+}
+
+/**
+ * Elimina tutti i messaggi di chat correlati a un codice matrimonio da Firestore
+ */
+export async function deleteChatMessagesByWeddingCodeFromFirestore(weddingCode: string): Promise<void> {
+  if (!weddingCode) return;
+  const normTarget = weddingCode.trim().toUpperCase().replace(/[\s\-_]+/g, '');
+  try {
+    const snapshot = await getDocs(collection(db, 'chat_messages'));
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      const code = data?.weddingCode || '';
+      if (code.trim().toUpperCase().replace(/[\s\-_]+/g, '') === normTarget) {
+        await deleteDoc(doc(db, 'chat_messages', docSnap.id));
+      }
+    }
+  } catch (error) {
+    console.warn('Errore cancellazione chat da Firestore:', error);
+  }
+}
+
+

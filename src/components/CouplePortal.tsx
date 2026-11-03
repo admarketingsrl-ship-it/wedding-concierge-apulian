@@ -60,6 +60,7 @@ import boatTourImg from '../assets/images/wedding_boat_experience_1791309131765.
 import { compressImageFile } from '../lib/imageCompressor';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { formatDateToItalian, formatDateToItalianLong, parseItalianDateToIso } from '../utils/dateUtils';
 
 interface CouplePortalProps {
   weddingData: WeddingData;
@@ -1015,7 +1016,14 @@ export default function CouplePortal({
 
   // Secondary info management
   const handleAddSecondaryInfo = () => {
-    if (!newInfoTitle.trim() || !newInfoContent.trim()) return;
+    if (!newInfoTitle.trim()) {
+      triggerToast('Inserisci il titolo della scheda informativa!');
+      return;
+    }
+    if (!newInfoContent.trim()) {
+      triggerToast('Il testo descrittivo della scheda è obbligatorio!');
+      return;
+    }
     const newSec: SecondaryInfoSection = {
       id: `sec-${Date.now()}`,
       title: newInfoTitle.trim(),
@@ -1088,7 +1096,7 @@ export default function CouplePortal({
 
 Siamo immensamente felici di invitarvi a celebrare il nostro matrimonio in Puglia:
 💍 *${coupleNames}*
-🗓 *Data:* ${new Date(weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+🗓 *Data:* ${formatDateToItalianLong(weddingDate)}
 📍 *Location:* ${venue} (${city})
 
 Per rendere il vostro soggiorno un'esperienza meravigliosa e senza pensieri, abbiamo attivato la piattaforma *Apulian Wedding Concierge*.
@@ -1107,7 +1115,7 @@ ${coupleNames} ❤️`;
 
 We are overjoyed to celebrate our destination wedding in Puglia with you:
 💍 *${coupleNames}*
-🗓 *Date:* ${weddingDate}
+🗓 *Date:* ${formatDateToItalianLong(weddingDate)}
 📍 *Venue:* ${venue} (${city}, Italy)
 
 To help you organize your travel smoothly, we have set up the *Apulian Wedding Concierge* platform!
@@ -1221,7 +1229,7 @@ ${coupleNames} ❤️`;
           <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-neutral-300 mt-3">
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-stone-400" />
-              <span>{new Date(weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              <span>{formatDateToItalianLong(weddingDate)}</span>
             </div>
             <span>•</span>
             <div className="flex items-center gap-1.5">
@@ -1335,14 +1343,22 @@ ${coupleNames} ❤️`;
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Data del Matrimonio
+                  Data del Matrimonio (Formato: giorno-mese-anno)
                 </label>
                 <input
                   type="date"
-                  value={weddingDate}
-                  onChange={(e) => setWeddingDate(e.target.value)}
-                  className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-neutral-900"
+                  value={parseItalianDateToIso(weddingDate)}
+                  onChange={(e) => {
+                    const isoVal = e.target.value;
+                    setWeddingDate(isoVal ? formatDateToItalian(isoVal) : '');
+                  }}
+                  className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-neutral-900 font-medium"
                 />
+                {weddingDate && (
+                  <span className="text-[11px] font-semibold text-stone-700 mt-1 block">
+                    Data impostata: <span className="underline font-mono">{formatDateToItalian(weddingDate)}</span> ({formatDateToItalianLong(weddingDate)})
+                  </span>
+                )}
               </div>
 
               <div>
@@ -1879,27 +1895,27 @@ ${coupleNames} ❤️`;
               </div>
             </div>
 
-            {/* Griglia Foto Caricate */}
+            {/* Griglia Foto Caricate (Formato Originale Integro Mantenuto) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
               {galleryPhotos.map((photo) => (
                 <div 
                   key={photo.id}
-                  className="group relative rounded-2xl overflow-hidden border border-neutral-200 bg-stone-750 shadow-2xs hover:shadow-md transition-all flex flex-col"
+                  className="group relative rounded-2xl overflow-hidden border border-neutral-200 bg-stone-900 shadow-2xs hover:shadow-md transition-all flex flex-col"
                 >
                   <div 
-                    className="aspect-4/3 overflow-hidden cursor-pointer relative"
+                    className="h-64 sm:h-72 w-full bg-stone-950/90 overflow-hidden cursor-pointer relative p-2 flex items-center justify-center"
                     onClick={() => setPreviewPhoto(photo)}
                   >
                     <img 
                       src={photo.url} 
                       alt={photo.caption || 'Foto sposi'} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-xs group-hover:scale-105 transition-transform duration-300"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="px-3 py-1.5 rounded-full bg-white/90 text-stone-800 text-xs font-bold flex items-center gap-1.5 shadow-md">
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Ingrandisci</span>
+                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                      <span className="px-3 py-1.5 rounded-full bg-white/95 text-stone-900 text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                        <Eye className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Ingrandisci Formato Originale</span>
                       </span>
                     </div>
                   </div>
@@ -2056,15 +2072,17 @@ ${coupleNames} ❤️`;
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                 <div className="sm:col-span-5">
-                  <label className="block text-[11px] font-medium text-neutral-700 mb-1">
-                    Titolo della Scheda
+                  <label className="block text-[11px] font-semibold text-neutral-800 mb-1 flex items-center justify-between">
+                    <span>Titolo della Scheda</span>
+                    <span className="text-rose-600 font-bold text-[10px]">* Obbligatorio</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={newInfoTitle}
                     onChange={(e) => setNewInfoTitle(e.target.value)}
                     placeholder="Es. Dress Code Brunch del Giorno Dopo"
-                    className="w-full p-2 text-xs bg-white border border-neutral-300 rounded-lg"
+                    className="w-full p-2 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-700"
                   />
                 </div>
 
@@ -2099,15 +2117,17 @@ ${coupleNames} ❤️`;
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-neutral-700 mb-1">
-                  Testo Descrittivo della Scheda
+                <label className="block text-[11px] font-semibold text-neutral-800 mb-1 flex items-center justify-between">
+                  <span>Testo Descrittivo della Scheda</span>
+                  <span className="text-rose-600 font-bold text-[10px]">* Obbligatorio</span>
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
+                  required
                   value={newInfoContent}
                   onChange={(e) => setNewInfoContent(e.target.value)}
-                  placeholder="Scrivi le indicazioni e i consigli per i tuoi invitati..."
-                  className="w-full p-2 text-xs bg-white border border-neutral-300 rounded-lg"
+                  placeholder="Scrivi le indicazioni e i consigli per i tuoi invitati (campo obbligatorio)..."
+                  className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-sky-700 leading-relaxed"
                 />
               </div>
             </div>

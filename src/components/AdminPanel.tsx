@@ -80,6 +80,12 @@ import {
   parseWeddingImportJson, 
   performCascadeDeleteWedding 
 } from '../utils/weddingExport';
+import { 
+  formatDateToItalian, 
+  formatDateToItalianLong, 
+  parseItalianDateToIso, 
+  ensureItalianDateFormat 
+} from '../utils/dateUtils';
 
 export interface AdminPanelProps {
   weddings: WeddingData[];
@@ -554,7 +560,10 @@ export default function AdminPanel({
   if (selectedWedding) {
     const coupleEmail = (selectedWedding.coupleEmail || 'sposi@wedding.it').trim().toLowerCase();
     const coupleMsgs = currentWeddingChatMessages.filter(
-      m => m.sender === 'couple' || (m.guestEmail && m.guestEmail.trim().toLowerCase() === coupleEmail)
+      m => m.sender === 'couple' || 
+           (m.guestEmail && m.guestEmail.trim().toLowerCase() === coupleEmail) ||
+           (m.guestEmail && m.guestEmail.trim().toLowerCase() === 'sposi@wedding.it') ||
+           (m.sender === 'valeria' && m.guestName && selectedWedding.coupleNames && m.guestName.toLowerCase().includes(selectedWedding.coupleNames.toLowerCase()))
     );
     conversationsMap.set('sposi-coppia', {
       id: 'sposi-coppia',
@@ -569,9 +578,14 @@ export default function AdminPanel({
   }
 
   // 2. Raggruppa i messaggi degli ospiti
+  const coupleEmailNorm = (selectedWedding?.coupleEmail || 'sposi@wedding.it').trim().toLowerCase();
+
   currentWeddingChatMessages.forEach(m => {
     if (m.sender === 'couple') return;
     const emailNorm = (m.guestEmail || '').trim().toLowerCase();
+    if (emailNorm === coupleEmailNorm || emailNorm === 'sposi@wedding.it') return;
+    if (m.sender === 'valeria' && m.guestName && selectedWedding?.coupleNames && m.guestName.toLowerCase().includes(selectedWedding.coupleNames.toLowerCase())) return;
+
     const nameNorm = (m.guestName || '').trim();
     if (!emailNorm && !nameNorm) return;
 
@@ -1228,8 +1242,9 @@ export default function AdminPanel({
     e.preventDefault();
     if (!replyText.trim() || !selectedWedding || !activeConversation) return;
 
-    const targetName = activeConversation.role === 'couple' ? selectedWedding.coupleNames : activeConversation.guestName;
-    const targetEmail = activeConversation.guestEmail || (activeConversation.role === 'couple' ? (selectedWedding.coupleEmail || '') : '') || 'info@admarketing.it';
+    const isCoupleChannel = activeConversation.role === 'couple' || activeConversation.id === 'sposi-coppia';
+    const targetName = isCoupleChannel ? selectedWedding.coupleNames : activeConversation.guestName;
+    const targetEmail = isCoupleChannel ? (selectedWedding.coupleEmail || 'sposi@wedding.it') : (activeConversation.guestEmail || 'info@admarketing.it');
 
     onReplyChatMessage({
       weddingCode: selectedWedding.weddingCode,
@@ -1826,7 +1841,7 @@ export default function AdminPanel({
 
             <div className="flex items-center gap-3 text-neutral-600 text-[11px]">
               <span>📍 {selectedWedding?.venue || 'Masseria'}, {selectedWedding?.city}</span>
-              <span>📅 {selectedWedding?.weddingDate}</span>
+              <span>📅 {ensureItalianDateFormat(selectedWedding?.weddingDate)}</span>
               <button
                 onClick={() => handleCopyLink(selectedWedding?.weddingCode || '')}
                 className="text-amber-900 font-bold hover:underline flex items-center gap-1"
@@ -2126,7 +2141,7 @@ export default function AdminPanel({
                       <div className="mt-3.5 space-y-1.5 text-xs text-neutral-600 border-t border-neutral-100 pt-3">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-                          <span className="font-medium text-stone-700">{w.weddingDate || 'Data da definire'}</span>
+                          <span className="font-medium text-stone-700">{ensureItalianDateFormat(w.weddingDate) || 'Data da definire'}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
@@ -6089,24 +6104,31 @@ export default function AdminPanel({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-neutral-700 mb-1">Data Matrimonio</label>
+                  <label className="block font-semibold text-neutral-700 mb-1">
+                    Data Matrimonio (Formato giorno-mese-anno, es. 18/07/2026)
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Es. 18 Luglio 2026"
-                    value={weddingForm.weddingDate || ''}
+                    type="date"
+                    value={parseItalianDateToIso(weddingForm.weddingDate)}
                     onChange={(e) => {
-                      const newDate = e.target.value;
+                      const isoVal = e.target.value;
+                      const formattedItDate = isoVal ? formatDateToItalian(isoVal) : '';
                       const autoCode = !editingWedding && weddingForm.coupleNames
-                        ? generateAutomaticWeddingCode(weddingForm.coupleNames, newDate, weddings.map(w => (w.weddingCode || '').toUpperCase()))
+                        ? generateAutomaticWeddingCode(weddingForm.coupleNames, formattedItDate, weddings.map(w => (w.weddingCode || '').toUpperCase()))
                         : (weddingForm.weddingCode || '');
                       setWeddingForm({ 
                         ...weddingForm, 
-                        weddingDate: newDate,
+                        weddingDate: formattedItDate,
                         weddingCode: !editingWedding && weddingForm.coupleNames ? autoCode : (weddingForm.weddingCode || '')
                       });
                     }}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs"
+                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-medium"
                   />
+                  {weddingForm.weddingDate && (
+                    <span className="text-[10px] font-semibold text-amber-900 mt-1 block font-mono">
+                      Data impostata: {formatDateToItalian(weddingForm.weddingDate)}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold text-neutral-700 mb-1">Password Area Sposi</label>

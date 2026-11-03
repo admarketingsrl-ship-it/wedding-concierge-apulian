@@ -6,7 +6,12 @@ import {
   PaymentRequest, 
   GuestItem 
 } from '../data/weddingStore';
-import { deleteWeddingFromFirestore, saveWeddingToFirestore } from '../lib/firebase';
+import { 
+  deleteWeddingFromFirestore, 
+  saveWeddingToFirestore,
+  deleteWishesByWeddingCodeFromFirestore,
+  deleteChatMessagesByWeddingCodeFromFirestore
+} from '../lib/firebase';
 
 export interface WeddingExportPackage {
   exportVersion: string;
@@ -256,6 +261,14 @@ export async function performCascadeDeleteWedding({
         p => normalizeWeddingCode(p.weddingCode) !== normTarget
       );
       onUpdatePaymentRequests(updatedPayments);
+    }
+
+    // Cancella da Firestore anche i desideri e i messaggi chat della sposa e degli ospiti per questo matrimonio
+    try {
+      await deleteWishesByWeddingCodeFromFirestore(codeToMatch);
+      await deleteChatMessagesByWeddingCodeFromFirestore(codeToMatch);
+    } catch (e) {
+      console.warn('Errore cancellazione entità collegate da Firestore:', e);
     }
   }
 
