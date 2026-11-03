@@ -50,6 +50,11 @@ import {
   saveCustomMasterExperience
 } from '../data/weddingStore';
 import { saveWeddingToFirestore } from '../lib/firebase';
+import { 
+  exportWeddingToJson, 
+  parseWeddingImportJson, 
+  performCascadeDeleteWedding 
+} from '../utils/weddingExport';
 
 interface SocioItem {
   id: string;
@@ -410,7 +415,7 @@ export default function AgencyDashboard({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             <button
               onClick={fetchDashboardData}
               disabled={loading}
@@ -418,6 +423,23 @@ export default function AgencyDashboard({
             >
               <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Sincronizza</span>
+            </button>
+            <button
+              onClick={() => {
+                if (selectedWeddingCode !== 'ALL') {
+                  const targetW = weddings.find(w => w.weddingCode.toUpperCase() === selectedWeddingCode.toUpperCase());
+                  if (targetW) {
+                    exportWeddingToJson(targetW, wishRequests, [], bookingOrders, paymentRequests);
+                  }
+                } else if (weddings.length > 0) {
+                  exportWeddingToJson(weddings[0], wishRequests, [], bookingOrders, paymentRequests);
+                }
+              }}
+              className="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-full shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+              title="Esporta il matrimonio in formato JSON con tutti gli ospiti e i desideri collegate"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Esporta Matrimonio (.JSON)</span>
             </button>
             <button
               onClick={handleExportCsv}

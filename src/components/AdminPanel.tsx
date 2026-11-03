@@ -75,6 +75,11 @@ import {
 } from '../data/weddingStore';
 import { saveWeddingToFirestore, deleteWeddingFromFirestore } from '../lib/firebase';
 import CatalogSettings from './CatalogSettings';
+import { 
+  exportWeddingToJson, 
+  parseWeddingImportJson, 
+  performCascadeDeleteWedding 
+} from '../utils/weddingExport';
 
 export interface AdminPanelProps {
   weddings: WeddingData[];
@@ -139,6 +144,81 @@ export default function AdminPanel({
   const [searchWedding, setSearchWedding] = useState('');
   const [selectedWeddingId, setSelectedWeddingId] = useState<string>(weddings[0]?.id || '');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Import / Export JSON & Cascade Delete
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const [deletingWeddingTarget, setDeletingWeddingTarget] = useState<WeddingData | null>(null);
+  const [showCascadeDeleteModal, setShowCascadeDeleteModal] = useState(false);
+
+  const handleImportWeddingFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const res = parseWeddingImportJson(text);
+      if (!res.success || !res.data) {
+        alert(res.message);
+        if (importFileInputRef.current) importFileInputRef.current.value = '';
+        return;
+      }
+
+      const { wedding, wishRequests: importedWishes, chatMessages: importedChat, bookingOrders: importedOrders, paymentRequests: importedPayments } = res.data;
+
+      // Unisci o aggiungi il matrimonio
+      const normCode = (wedding.weddingCode || wedding.id).trim().toUpperCase();
+      const existingIdx = weddings.findIndex(
+        w => (w.weddingCode || w.id).trim().toUpperCase() === normCode
+      );
+
+      let nextWeddings: WeddingData[];
+      if (existingIdx >= 0) {
+        nextWeddings = [...weddings];
+        nextWeddings[existingIdx] = wedding;
+      } else {
+        nextWeddings = [wedding, ...weddings];
+      }
+
+      onUpdateWeddings(nextWeddings);
+      setSelectedWeddingId(wedding.id);
+
+      // Unisci wish requests
+      if (importedWishes && importedWishes.length > 0) {
+        const map = new Map<string, TouristWishRequest>();
+        wishRequests.forEach(w => map.set(w.id, w));
+        importedWishes.forEach(w => map.set(w.id, w));
+        onUpdateWishRequests(Array.from(map.values()));
+      }
+
+      // Unisci ordini fornitori
+      if (importedOrders && importedOrders.length > 0) {
+        const map = new Map<string, SupplierBookingOrder>();
+        bookingOrders.forEach(o => map.set(o.id, o));
+        importedOrders.forEach(o => map.set(o.id, o));
+        onUpdateBookingOrders(Array.from(map.values()));
+      }
+
+      // Unisci richieste pagamento
+      if (importedPayments && importedPayments.length > 0) {
+        const map = new Map<string, PaymentRequest>();
+        paymentRequests.forEach(p => map.set(p.id, p));
+        importedPayments.forEach(p => map.set(p.id, p));
+        onUpdatePaymentRequests(Array.from(map.values()));
+      }
+
+      try {
+        await saveWeddingToFirestore(wedding);
+      } catch {}
+
+      setAlertActionToast(`✓ Matrimonio "${wedding.coupleNames}" ed entità collegate importate con successo!`);
+      setTimeout(() => setAlertActionToast(null), 4000);
+
+      if (importFileInputRef.current) importFileInputRef.current.value = '';
+    };
+
+    reader.readAsText(file);
+  };
 
   // Gestione Schermata Impostazioni Avanzate Agenzia
   const [settingsSubTab, setSettingsSubTab] = useState<'company' | 'team_contacts' | 'banking' | 'branding' | 'features' | 'preview_sync'>('company');
@@ -770,19 +850,9 @@ export default function AdminPanel({
     });
   };
 
-  const handleDeleteWedding = async (wedding: WeddingData) => {
-    if (confirm('Sei sicuro di voler eliminare questo matrimonio?')) {
-      const next = weddings.filter(w => w.id !== wedding.id);
-      onUpdateWeddings(next);
-      if (selectedWeddingId === wedding.id && next.length > 0) {
-        setSelectedWeddingId(next[0].id);
-      }
-      try {
-        await deleteWeddingFromFirestore(wedding.id, wedding.weddingCode);
-      } catch (err) {
-        console.warn('Errore eliminazione matrimonio da Firestore:', err);
-      }
-    }
+  const handleDeleteWedding = (wedding: WeddingData) => {
+    setDeletingWeddingTarget(wedding);
+    setShowCascadeDeleteModal(true);
   };
 
   const resolveExperience = (expIdOrTitle: string) => {
@@ -1648,6 +1718,23 @@ export default function AdminPanel({
               </button>
 
               <button
+                type="button"
+                onClick={() => importFileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-stone-300 text-stone-700 hover:bg-stone-100 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                title="Importa file JSON di un matrimonio completo"
+              >
+                <Download className="w-3.5 h-3.5 rotate-180" />
+                Importa (.json)
+              </button>
+              <input
+                ref={importFileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportWeddingFile}
+                className="hidden"
+              />
+
+              <button
                 onClick={onLogout}
                 className="inline-flex items-center gap-1 px-4 py-2 rounded-full border border-stone-200 text-stone-700 hover:bg-stone-100 text-xs font-medium transition-all cursor-pointer"
               >
@@ -2012,15 +2099,23 @@ export default function AdminPanel({
 
                         <div className="flex items-center gap-1">
                           <button
+                            type="button"
+                            onClick={() => exportWeddingToJson(w, wishRequests, chatMessages, bookingOrders, paymentRequests)}
+                            className="text-neutral-400 hover:text-emerald-700 p-1.5 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer"
+                            title="Esporta Matrimonio (.json)"
+                          >
+                            <Download className="w-4 h-4 text-emerald-700" />
+                          </button>
+                          <button
                             onClick={() => handleOpenEditWedding(w)}
-                            className="text-neutral-400 hover:text-amber-900 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors"
+                            className="text-neutral-400 hover:text-amber-900 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer"
                             title="Modifica Matrimonio"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteWedding(w)}
-                            className="text-neutral-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                            className="text-neutral-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Elimina Matrimonio"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -7344,6 +7439,134 @@ export default function AdminPanel({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODALE DI CONFERMA CANCELLAZIONE PROFONDA MATRIMONIO (CASCADE DELETE) */}
+      {showCascadeDeleteModal && deletingWeddingTarget && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-stone-200">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-100 text-rose-700 rounded-xl">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-base">Eliminazione Matrimonio</h3>
+                  <p className="text-xs text-stone-500">{deletingWeddingTarget.coupleNames} ({deletingWeddingTarget.weddingCode})</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCascadeDeleteModal(false);
+                  setDeletingWeddingTarget(null);
+                }}
+                className="text-stone-400 hover:text-stone-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="my-5 space-y-3.5">
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Scegli la modalità di rimozione per il matrimonio <strong>{deletingWeddingTarget.coupleNames}</strong>:
+              </p>
+
+              {/* Opzione 1: Eliminazione Completa & Profonda */}
+              <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-200 space-y-2">
+                <div className="font-bold text-rose-900 text-xs flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Eliminazione Completa &amp; Profonda (Consigliato)</span>
+                </div>
+                <p className="text-[11px] text-rose-800 leading-normal">
+                  Rimuove la scheda matrimonio <strong>E TUTTI I DATI COLLEGATI</strong>: tutti gli ospiti della lista, le scelte dell'itinerario, le richieste desideri/wishlist, gli ordini fornitori, le conversazioni chat e le richieste di pagamento legate al codice <code className="bg-rose-100 px-1 py-0.5 rounded font-mono">{deletingWeddingTarget.weddingCode}</code>.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const target = deletingWeddingTarget;
+                    setShowCascadeDeleteModal(false);
+                    setDeletingWeddingTarget(null);
+                    await performCascadeDeleteWedding({
+                      weddingCodeOrId: target.weddingCode || target.id,
+                      weddingTitle: target.coupleNames,
+                      weddings,
+                      wishRequests,
+                      chatMessages,
+                      bookingOrders,
+                      paymentRequests,
+                      onUpdateWeddings,
+                      onUpdateWishRequests,
+                      onUpdateBookingOrders,
+                      onUpdatePaymentRequests,
+                      deleteAssociatedEntities: true
+                    });
+                    if (selectedWeddingId === target.id) {
+                      const remaining = weddings.filter(w => w.id !== target.id);
+                      if (remaining.length > 0) setSelectedWeddingId(remaining[0].id);
+                    }
+                    setAlertActionToast(`✓ Matrimonio ${target.weddingCode} e tutti i dati e ospiti associati eliminati con successo.`);
+                    setTimeout(() => setAlertActionToast(null), 4000);
+                  }}
+                  className="w-full mt-2 py-2.5 px-4 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Elimina Matrimonio e Tutti i Dati
+                </button>
+              </div>
+
+              {/* Opzione 2: Rimuovi solo scheda */}
+              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 space-y-2">
+                <div className="font-bold text-stone-800 text-xs">
+                  Elimina solo la scheda matrimonio
+                </div>
+                <p className="text-[11px] text-stone-600 leading-normal">
+                  Rimuove la scheda dalla lista matrimoni mantenendo gli ospiti e i dati negli archivi.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const target = deletingWeddingTarget;
+                    setShowCascadeDeleteModal(false);
+                    setDeletingWeddingTarget(null);
+                    await performCascadeDeleteWedding({
+                      weddingCodeOrId: target.weddingCode || target.id,
+                      weddingTitle: target.coupleNames,
+                      weddings,
+                      wishRequests,
+                      chatMessages,
+                      bookingOrders,
+                      paymentRequests,
+                      onUpdateWeddings,
+                      deleteAssociatedEntities: false
+                    });
+                    if (selectedWeddingId === target.id) {
+                      const remaining = weddings.filter(w => w.id !== target.id);
+                      if (remaining.length > 0) setSelectedWeddingId(remaining[0].id);
+                    }
+                    setAlertActionToast(`Scheda matrimonio ${target.weddingCode} rimossa.`);
+                    setTimeout(() => setAlertActionToast(null), 3000);
+                  }}
+                  className="w-full mt-1 py-2 px-4 bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                >
+                  Elimina solo la scheda
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-stone-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCascadeDeleteModal(false);
+                  setDeletingWeddingTarget(null);
+                }}
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Annulla
+              </button>
+            </div>
           </div>
         </div>
       )}

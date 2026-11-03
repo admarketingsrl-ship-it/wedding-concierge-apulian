@@ -757,19 +757,35 @@ app.put('/api/weddings/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/weddings/:id - Elimina un matrimonio istantaneamente (< 2ms)
+// DELETE /api/weddings/:id - Elimina un matrimonio istantaneamente (< 2ms) e pulisci entità collegate
 app.delete('/api/weddings/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { deleteAssociatedEntities } = req.body || {};
     let weddings = loadWeddingsFromDisk();
-    
-    if (weddings.length <= 1) {
-      return res.status(400).json({ success: false, message: 'Impossibile eliminare l\'ultimo matrimonio rimanente.' });
-    }
 
     const target = weddings.find(w => w.id === id || w.weddingCode?.toUpperCase() === id.toUpperCase());
+    const targetCode = target?.weddingCode || id;
+    const cleanTargetNorm = (targetCode || '').toUpperCase().replace(/[\s\-_]+/g, '');
+
     weddings = weddings.filter(w => w.id !== id && w.weddingCode?.toUpperCase() !== id.toUpperCase());
     saveJsonFile('weddings.json', weddings);
+
+    if (deleteAssociatedEntities) {
+      // Pulisci desideri
+      try {
+        let wishes = loadJsonFile('wishes.json', []);
+        wishes = wishes.filter(w => (w.weddingCode || '').toUpperCase().replace(/[\s\-_]+/g, '') !== cleanTargetNorm);
+        saveJsonFile('wishes.json', wishes);
+      } catch {}
+
+      // Pulisci chat
+      try {
+        let chat = loadJsonFile('chat_messages.json', []);
+        chat = chat.filter(m => (m.weddingCode || '').toUpperCase().replace(/[\s\-_]+/g, '') !== cleanTargetNorm);
+        saveJsonFile('chat_messages.json', chat);
+      } catch {}
+    }
 
     if (target) {
       addAuditLog(
@@ -778,11 +794,11 @@ app.delete('/api/weddings/:id', async (req, res) => {
         'WEDDING_DELETED',
         'WEDDING',
         target.coupleNames,
-        `Eliminato matrimonio codice ${target.weddingCode}`
+        `Eliminato matrimonio codice ${target.weddingCode} (Cascade: ${!!deleteAssociatedEntities})`
       );
     }
 
-    res.status(200).json({ success: true, message: 'Matrimonio eliminato' });
+    res.status(200).json({ success: true, message: 'Matrimonio eliminato con successo' });
 
     setImmediate(async () => {
       try {
