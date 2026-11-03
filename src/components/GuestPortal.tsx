@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Building2, 
   Car, 
@@ -40,7 +40,12 @@ import {
   ChevronLeft,
   Tag,
   CreditCard,
-  Menu
+  Menu,
+  Trash2,
+  Eye,
+  Smartphone,
+  Upload,
+  Copy
 } from 'lucide-react';
 import HamburgerMenu from './HamburgerMenu';
 import { 
@@ -54,8 +59,10 @@ import {
   MasterSupplier,
   SupplierBookingOrder,
   AdminSettings,
-  FamilyCompanion
+  FamilyCompanion,
+  WeddingAlbumPhoto
 } from '../data/weddingStore';
+import { compressImageFile } from '../lib/imageCompressor';
 import { formatDateToItalian, formatDateToItalianLong } from '../utils/dateUtils';
 
 interface GuestPortalProps {
@@ -75,12 +82,13 @@ interface GuestPortalProps {
   onSendWish: (wish: { title: string; description: string; preferredDate: string; participantsCount: number; budgetRange: string; weddingCode?: string; guestName?: string; guestEmail?: string }) => void;
   onConfirmBookingToSuppliers?: (orders: SupplierBookingOrder[]) => void;
   onSaveGuestChoices?: (guestPayload: any) => void;
+  onUpdateWedding?: (updated: WeddingData) => void;
   adminSettings?: AdminSettings;
   wishRequests?: TouristWishRequest[];
   lang: 'it' | 'en';
   setLang: (lang: 'it' | 'en') => void;
-  activeTab?: 'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments';
-  setActiveTab?: (tab: 'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments') => void;
+  activeTab?: 'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments' | 'album';
+  setActiveTab?: (tab: 'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments' | 'album') => void;
   onOpenMenu?: () => void;
 }
 
@@ -113,6 +121,7 @@ export default function GuestPortal({
   onSendWish,
   onConfirmBookingToSuppliers,
   onSaveGuestChoices,
+  onUpdateWedding,
   adminSettings,
   wishRequests = [],
   lang,
@@ -123,17 +132,21 @@ export default function GuestPortal({
 }: GuestPortalProps) {
   if (!weddingData) return null;
 
-  const [internalActiveTab, setInternalActiveTab] = useState<'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments'>('couple-info');
+  const [internalActiveTab, setInternalActiveTab] = useState<'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments' | 'album'>('couple-info');
   const activeTab = propActiveTab !== undefined ? propActiveTab : internalActiveTab;
   const setActiveTab = (tab: any) => {
     if (propSetActiveTab) propSetActiveTab(tab);
     setInternalActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
     { id: 'couple-info', label: 'Dagli Sposi', icon: <Heart className="w-5 h-5" /> },
     { id: 'rsvp', label: 'RSVP & Famiglia', icon: <CheckCircle2 className="w-5 h-5" /> },
+    { id: 'album', label: lang === 'it' ? 'Album Nozze' : 'Wedding Album', icon: <Camera className="w-5 h-5" /> },
     { id: 'hotels', label: 'Hotel', icon: <Building2 className="w-5 h-5" /> },
     { id: 'transfers', label: 'Transfer', icon: <Car className="w-5 h-5" /> },
     { id: 'experiences', label: 'Esperienze', icon: <Compass className="w-5 h-5" /> },
@@ -143,6 +156,140 @@ export default function GuestPortal({
     { id: 'itinerary', label: 'Programma', icon: <Calendar className="w-5 h-5" /> },
     { id: 'payments', label: 'Pagamenti', icon: <CreditCard className="w-5 h-5" /> },
   ];
+
+  // Gestione Album Fotografico Condiviso (fino a 30 foto per ospite con compressione)
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [albumFilterMode, setAlbumFilterMode] = useState<'all' | 'mine'>('all');
+  const [isUploadingAlbumPhoto, setIsUploadingAlbumPhoto] = useState(false);
+  const [albumSuccessMsg, setAlbumSuccessMsg] = useState<string | null>(null);
+  const [previewAlbumPhoto, setPreviewAlbumPhoto] = useState<WeddingAlbumPhoto | null>(null);
+  const [albumUploadProgress, setAlbumUploadProgress] = useState<string>('');
+  const [copiedWishField, setCopiedWishField] = useState<string | null>(null);
+
+  const currentGuestEmail = (guestInfo?.email || '').trim().toLowerCase();
+  const allWeddingAlbumPhotos: WeddingAlbumPhoto[] = weddingData.weddingAlbumPhotos || [];
+  const myAlbumPhotos = allWeddingAlbumPhotos.filter(
+    p => (p.guestEmail || '').trim().toLowerCase() === currentGuestEmail
+  );
+  const myPhotosCount = myAlbumPhotos.length;
+  const maxPhotosLimit = 30;
+  const remainingSlots = Math.max(0, maxPhotosLimit - myPhotosCount);
+
+  // Caricamento e compressione on-the-fly foto da fotocamera o rullino
+  const handleUploadAlbumPhotos = async (e: React.ChangeEvent<HTMLInputElement>, isCamera: boolean) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (myPhotosCount >= maxPhotosLimit) {
+      alert(lang === 'it' 
+        ? 'Hai già raggiunto il limite massimo di 30 fotografie consentite per il tuo profilo.' 
+        : 'You have reached the maximum limit of 30 photos for your profile.');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const filesToProcess = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+      alert(lang === 'it' 
+        ? `Puoi caricare ancora solo ${remainingSlots} fotografie (limite: 30 per invitato). Verranno caricate le prime ${remainingSlots}.` 
+        : `You can only upload ${remainingSlots} more photos (limit: 30 per guest). The first ${remainingSlots} will be uploaded.`);
+    }
+
+    setIsUploadingAlbumPhoto(true);
+    setAlbumUploadProgress(lang === 'it' ? 'Ottimizzazione e compressione in corso...' : 'Optimizing and compressing photos...');
+
+    try {
+      const newlyAdded: WeddingAlbumPhoto[] = [];
+      let idx = 0;
+
+      for (const file of filesToProcess) {
+        idx++;
+        setAlbumUploadProgress(lang === 'it' 
+          ? `Compressione scatto ${idx} di ${filesToProcess.length}...` 
+          : `Compressing photo ${idx} of ${filesToProcess.length}...`);
+
+        // Comprimi l'immagine mantenendo il formato e proporzioni originali (riduce il peso a ~90-120KB)
+        const compressedBase64 = await compressImageFile(file, {
+          maxWidth: 1280,
+          maxHeight: 1280,
+          quality: 0.72,
+          maxBytes: 120 * 1024
+        });
+
+        const approxBytes = Math.round(compressedBase64.length * 0.75);
+        const now = new Date();
+        const dateFormatted = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+
+        const defaultCaption = isCamera
+          ? (lang === 'it' ? `Scatto live di ${guestInfo.name}` : `Live shot by ${guestInfo.name}`)
+          : file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+
+        newlyAdded.push({
+          id: `album-photo-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+          url: compressedBase64,
+          caption: defaultCaption,
+          guestEmail: guestInfo.email,
+          guestName: guestInfo.name,
+          uploadedAt: dateFormatted,
+          sizeBytes: approxBytes,
+          takenWithCamera: isCamera
+        });
+      }
+
+      const updatedWedding: WeddingData = {
+        ...weddingData,
+        weddingAlbumPhotos: [...(weddingData.weddingAlbumPhotos || []), ...newlyAdded]
+      };
+
+      if (onUpdateWedding) {
+        onUpdateWedding(updatedWedding);
+      }
+
+      setAlbumSuccessMsg(lang === 'it' 
+        ? `${newlyAdded.length} ${newlyAdded.length === 1 ? 'fotografia aggiunta' : 'fotografie aggiunte'} all'album del matrimonio!`
+        : `${newlyAdded.length} ${newlyAdded.length === 1 ? 'photo added' : 'photos added'} to the wedding album!`);
+      setTimeout(() => setAlbumSuccessMsg(null), 4500);
+
+    } catch (err) {
+      console.error('Errore durante caricamento foto album:', err);
+      alert(lang === 'it' 
+        ? 'Si è verificato un errore durante la compressione dell\'immagine.' 
+        : 'An error occurred during photo compression.');
+    } finally {
+      setIsUploadingAlbumPhoto(false);
+      setAlbumUploadProgress('');
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+    }
+  };
+
+  // Eliminazione di una propria foto dall'album
+  const handleDeleteAlbumPhoto = (photoId: string) => {
+    const confirmText = lang === 'it' 
+      ? 'Sei sicuro di voler eliminare questa fotografia dal tuo album?' 
+      : 'Are you sure you want to remove this photo from your album?';
+    if (!confirm(confirmText)) return;
+
+    const updatedWedding: WeddingData = {
+      ...weddingData,
+      weddingAlbumPhotos: (weddingData.weddingAlbumPhotos || []).filter(p => p.id !== photoId)
+    };
+
+    if (onUpdateWedding) {
+      onUpdateWedding(updatedWedding);
+    }
+  };
+
+  // Download singola fotografia in alta qualità
+  const handleDownloadAlbumPhoto = (photo: WeddingAlbumPhoto) => {
+    const a = document.createElement('a');
+    a.href = photo.url;
+    a.download = `nozze_${weddingData.weddingCode}_${photo.guestName.replace(/\s+/g, '_')}_${photo.id}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
   
   // ... (rest of the state and handlers remain, I just need to remove the nav block at the end)
 
@@ -1254,6 +1401,27 @@ export default function GuestPortal({
             <p className="text-xs sm:text-sm text-stone-600 mt-1">
               Sei invitato alle nozze di <strong className="text-stone-900">{weddingData.coupleNames}</strong> a {weddingData.venue} ({weddingData.city}).
             </p>
+
+            {/* Due pulsanti rapidi richiesti dall'utente */}
+            <div className="flex flex-wrap items-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('rsvp')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Servizi e Prenotazioni</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('couple-info')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs shadow-2xs border border-amber-300 transition-all cursor-pointer"
+              >
+                <Info className="w-4 h-4 text-amber-800" />
+                <span>Informazioni Utili e Assistenza</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -2889,51 +3057,229 @@ export default function GuestPortal({
             const gName = (guestInfo.name || '').trim().toLowerCase();
             const selCode = (weddingData.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
 
-            const myWishes = wishRequests.filter(w => {
+            const myWishes = (wishRequests || []).filter(w => {
               const wEmail = (w.guestEmail || '').trim().toLowerCase();
               const wName = (w.guestName || '').trim().toLowerCase();
               const wCode = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
 
-              const matchesEmail = gEmail && wEmail && gEmail === wEmail;
-              const matchesName = gName && wName && gName === wName;
               const matchesCode = !wCode || wCode === selCode;
+              if (!matchesCode) return false;
 
-              return (matchesEmail || matchesName) && matchesCode;
+              const matchesEmail = Boolean(
+                gEmail && wEmail && (gEmail === wEmail || wEmail.includes(gEmail) || gEmail.includes(wEmail))
+              );
+
+              const gFirst = gName.split(' ')[0] || '';
+              const wFirst = wName.split(' ')[0] || '';
+
+              const matchesName = Boolean(
+                gName && wName && (
+                  gName === wName ||
+                  gName.includes(wName) ||
+                  wName.includes(gName) ||
+                  (gFirst.length >= 2 && wFirst.length >= 2 && gFirst === wFirst)
+                )
+              );
+
+              const matchesId = Boolean((w as any)?.guestId && (guestInfo as any)?.id && (w as any).guestId === (guestInfo as any)?.id);
+
+              return matchesEmail || matchesName || matchesId;
             });
+
+            const defaultIban = adminSettings?.defaultIban || 'IT98 X 03002 03280 000000123456';
+            const defaultBic = adminSettings?.defaultBic || 'UNCRITM1B45';
+            const bankAccountHolder = adminSettings?.bankAccountHolder || adminSettings?.agencyLegalName || 'AD Marketing S.r.l.s. - Servizi Matrimoni Puglia';
+            const bankName = adminSettings?.bankName || 'UniCredit Banca';
 
             return (
               <div className="pt-6 border-t border-stone-100">
-                <h3 className="text-sm font-bold text-stone-800 mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span>I tuoi Desideri Inviati ({myWishes.length})</span>
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <h3 className="text-sm font-bold text-stone-800 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    <span>I tuoi Desideri Inviati ({myWishes.length})</span>
+                  </h3>
+                  {myWishes.some(w => w.proposedCost !== undefined) && (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      ✨ Quotazione Ufficiale Concierge Disponibile
+                    </span>
+                  )}
+                </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {myWishes.length === 0 ? (
                     <p className="text-xs text-neutral-400 italic">Non hai ancora inviato richieste personalizzate per questo matrimonio.</p>
                   ) : (
-                    myWishes.map(wish => (
-                      <div key={wish.id} className="p-4 bg-white rounded-xl border border-neutral-200 shadow-2xs space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-stone-900">{wish.title}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            wish.status === 'RECEIVED' ? 'bg-amber-50 text-amber-700' :
-                            wish.status === 'PROPOSAL_READY' ? 'bg-indigo-50 text-indigo-700' :
-                            'bg-emerald-50 text-emerald-700'
-                          }`}>
-                            {wish.status === 'RECEIVED' ? 'IN ATTESA' : 
-                             wish.status === 'PROPOSAL_READY' ? 'PROPOSTA PRONTA' : 
-                             wish.status === 'CONFIRMED' ? 'CONFERMATO' : 'ARCHIVIATO'}
-                          </span>
+                    myWishes.map(wish => {
+                      const hasProposal = wish.proposedCost !== undefined && wish.proposedCost !== null;
+                      const causaleBonifico = `Saldo Desiderio ${weddingData.weddingCode} - ${wish.guestName}`;
+
+                      return (
+                        <div key={wish.id} className="p-5 bg-white rounded-2xl border border-neutral-200 shadow-2xs space-y-3.5">
+                          {/* Intestazione Desiderio */}
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 border-b border-stone-100 pb-2.5">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-serif-luxury font-bold text-stone-900 text-base">{wish.title}</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-500 mt-1">
+                                <span>📅 Data: <strong>{wish.preferredDate || 'Flessibile'}</strong></span>
+                                <span>👥 Partecipanti: <strong>{wish.participantsCount} pax</strong></span>
+                                {wish.budgetRange && <span>💶 Budget indicativo: <strong>{wish.budgetRange}</strong></span>}
+                              </div>
+                            </div>
+
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 self-start sm:self-auto ${
+                              wish.status === 'RECEIVED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              wish.status === 'PROPOSAL_READY' ? 'bg-indigo-100 text-indigo-950 border border-indigo-300' :
+                              'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            }`}>
+                              {wish.status === 'RECEIVED' ? '⏳ IN VALUTAZIONE CONCIERGE' : 
+                               wish.status === 'PROPOSAL_READY' ? '💡 QUOTAZIONE PRONTA' : 
+                               wish.status === 'CONFIRMED' ? '🟢 CONFERMATO' : 'ARCHIVIATO'}
+                            </span>
+                          </div>
+
+                          {/* Testo richiesta originale */}
+                          <div className="p-3 bg-stone-50 rounded-xl text-xs text-stone-700 leading-relaxed italic border border-stone-200/70">
+                            "{wish.description}"
+                          </div>
+
+                          {/* SEZIONE QUOTAZIONE UFFICIALE & COORDINATE DI PAGAMENTO */}
+                          {hasProposal || wish.status === 'PROPOSAL_READY' || wish.status === 'CONFIRMED' ? (
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50/90 via-white to-amber-50/40 border-2 border-emerald-500 shadow-xs space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100 pb-2.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                                    {wish.status === 'CONFIRMED' ? '✓ Preventivo Confermato dall\'Agenzia' : '💡 Proposta & Quotazione Ufficiale da Valeria'}
+                                  </span>
+                                </div>
+                                <div className="flex items-baseline gap-2 bg-emerald-800 text-white px-3.5 py-1.5 rounded-xl shadow-xs self-start sm:self-auto">
+                                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-200">Totale Quota:</span>
+                                  <span className="text-lg font-mono font-black">€ {wish.proposedCost || 0}</span>
+                                </div>
+                              </div>
+
+                              {/* Dettagli organizzativi e note di Valeria */}
+                              {wish.agencyNotes && (
+                                <div className="text-xs text-stone-800 bg-white/95 p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 block flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Note & Dettagli da Valeria (AD Marketing Concierge):</span>
+                                  </span>
+                                  <p className="leading-relaxed text-stone-700 whitespace-pre-wrap">{wish.agencyNotes}</p>
+                                </div>
+                              )}
+
+                              {/* Box Modalità di Pagamento & Coordinate Bancarie */}
+                              <div className="bg-white p-3.5 rounded-xl border border-neutral-200 text-xs space-y-2.5 shadow-2xs">
+                                <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5">
+                                  <span className="text-[11px] font-bold text-stone-900 flex items-center gap-1.5">
+                                    <CreditCard className="w-3.5 h-3.5 text-amber-700" />
+                                    <span>Modalità di Pagamento & Saldo Ufficiale</span>
+                                  </span>
+                                  <span className="text-[10px] text-neutral-400 font-medium">Coordinate AD Marketing Puglia</span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                                  {/* IBAN */}
+                                  <div className="p-2.5 bg-stone-50 rounded-lg border border-stone-200 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9px] uppercase font-bold text-neutral-500">Coordinate IBAN</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(defaultIban);
+                                          setCopiedWishField(`iban-${wish.id}`);
+                                          setTimeout(() => setCopiedWishField(null), 2500);
+                                        }}
+                                        className="text-[10px] text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                        <span>{copiedWishField === `iban-${wish.id}` ? '✓ Copiato!' : 'Copia'}</span>
+                                      </button>
+                                    </div>
+                                    <div className="font-mono font-bold text-stone-900 text-xs select-all bg-white p-1 rounded border border-neutral-200">
+                                      {defaultIban}
+                                    </div>
+                                    <div className="text-[9px] text-neutral-500 font-mono">BIC/SWIFT: {defaultBic}</div>
+                                  </div>
+
+                                  {/* Intestatario & Banca */}
+                                  <div className="p-2.5 bg-stone-50 rounded-lg border border-stone-200 space-y-1">
+                                    <span className="text-[9px] uppercase font-bold text-neutral-500 block">Intestatario & Banca</span>
+                                    <div className="font-bold text-stone-800 text-[11px] truncate" title={bankAccountHolder}>
+                                      {bankAccountHolder}
+                                    </div>
+                                    <div className="text-[10px] text-neutral-600 truncate">{bankName}</div>
+                                  </div>
+                                </div>
+
+                                {/* Causale Raccomandata */}
+                                <div className="p-2.5 bg-amber-50/90 rounded-lg border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+                                  <div className="text-amber-950">
+                                    <span className="font-bold block text-[10px] uppercase text-amber-900">Causale Bonifico Raccomandata:</span>
+                                    <span className="font-mono font-bold select-all text-xs">{causaleBonifico}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(causaleBonifico);
+                                      setCopiedWishField(`causale-${wish.id}`);
+                                      setTimeout(() => setCopiedWishField(null), 2500);
+                                    }}
+                                    className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold rounded text-[10px] shrink-0 border border-amber-300 flex items-center gap-1 cursor-pointer self-start sm:self-auto"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    <span>{copiedWishField === `causale-${wish.id}` ? '✓ Causale Copiata!' : 'Copia Causale'}</span>
+                                  </button>
+                                </div>
+
+                                {/* Azioni Rapide Pagamento e Chat */}
+                                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-neutral-100">
+                                  {adminSettings?.stripePaymentLink ? (
+                                    <a
+                                      href={adminSettings.stripePaymentLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-black text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                                    >
+                                      <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+                                      <span>Paga Online con Carta (Stripe)</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-neutral-500">
+                                      Effettua il bonifico con le coordinate sopra indicate.
+                                    </span>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (setActiveTab) setActiveTab('chat');
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer ml-auto"
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>Contatta Valeria in Chat</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-950 space-y-1">
+                              <div className="flex items-center gap-2 font-bold text-amber-900">
+                                <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                                <span>Richiesta in lavorazione da parte di Valeria (Concierge)</span>
+                              </div>
+                              <p className="text-[11px] text-neutral-600 leading-relaxed">
+                                Stiamo contattando i partner locali in Puglia per garantirti disponibilità e la migliore tariffa riservata. A breve troverai qui la quotazione ufficiale con le relative coordinate di pagamento.
+                              </p>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-xs text-stone-600 leading-relaxed">"{wish.description}"</p>
-                        <div className="flex items-center gap-4 text-[10px] text-neutral-500 pt-1">
-                          <span>Data: {wish.preferredDate || 'Da definire'}</span>
-                          <span>Partecipanti: {wish.participantsCount}</span>
-                          {wish.proposedCost && <span className="font-bold text-emerald-700">Costo Proposto: € {wish.proposedCost}</span>}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -3270,19 +3616,103 @@ export default function GuestPortal({
                     </div>
                   )}
 
-                  {/* Desideri inviati */}
-                  <div className="p-3 rounded-lg bg-white border border-amber-200 text-stone-800 flex items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded uppercase">
-                        Desideri / Richieste Bespoke
-                      </span>
-                      <div className="font-bold text-xs mt-1">Gestione tramite assistente Valeria & Staff AD Marketing</div>
-                      <div className="text-[11px] text-neutral-500">Le richieste inviate tramite la scheda "Desideri" sono in fase di valutazione.</div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
-                      ⏳ In lavorazione
-                    </span>
-                  </div>
+                  {/* Desideri inviati e Quotazioni */}
+                  {(() => {
+                    const gEmail = (guestInfo.email || '').trim().toLowerCase();
+                    const gName = (guestInfo.name || '').trim().toLowerCase();
+                    const selCode = (weddingData.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+
+                    const matchedWishes = (wishRequests || []).filter(w => {
+                      const wEmail = (w.guestEmail || '').trim().toLowerCase();
+                      const wName = (w.guestName || '').trim().toLowerCase();
+                      const wCode = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+
+                      const matchesCode = !wCode || wCode === selCode;
+                      if (!matchesCode) return false;
+
+                      const matchesEmail = Boolean(gEmail && wEmail && (gEmail === wEmail || wEmail.includes(gEmail) || gEmail.includes(wEmail)));
+                      const gFirst = gName.split(' ')[0] || '';
+                      const wFirst = wName.split(' ')[0] || '';
+                      const matchesName = Boolean(gName && wName && (gName === wName || gName.includes(wName) || wName.includes(gName) || (gFirst.length >= 2 && wFirst.length >= 2 && gFirst === wFirst)));
+                      const matchesId = Boolean((w as any)?.guestId && (guestInfo as any)?.id && (w as any).guestId === (guestInfo as any)?.id);
+
+                      return matchesEmail || matchesName || matchesId;
+                    });
+
+                    if (matchedWishes.length === 0) {
+                      return (
+                        <div className="p-3 rounded-lg bg-white border border-amber-200 text-stone-800 flex items-center justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded uppercase">
+                              Desideri / Richieste Bespoke
+                            </span>
+                            <div className="font-bold text-xs mt-1">Nessuna richiesta personalizzata attiva</div>
+                            <div className="text-[11px] text-neutral-500">Puoi richiedere tour speciali, vespa o cene nella scheda "Desideri".</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('wishes')}
+                            className="px-2.5 py-1 text-[10px] font-bold bg-amber-100 text-amber-900 rounded-lg hover:bg-amber-200 cursor-pointer shrink-0"
+                          >
+                            Esprimi Desiderio →
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return matchedWishes.map(wish => {
+                      const hasQuot = wish.proposedCost !== undefined && wish.proposedCost !== null;
+                      return (
+                        <div key={wish.id} className="p-3.5 rounded-lg bg-white border border-emerald-300 text-stone-800 space-y-2 shadow-2xs">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded uppercase">
+                                  {wish.status === 'CONFIRMED' ? '🟢 Desiderio Confermato' : hasQuot ? '💡 Quotazione Ricevuta' : '⏳ In Valutazione'}
+                                </span>
+                                <span className="font-bold text-xs text-stone-900">{wish.title}</span>
+                              </div>
+                              <div className="text-[11px] text-neutral-500 mt-0.5">
+                                Partecipanti: {wish.participantsCount} pax &bull; Data: {wish.preferredDate || 'Flessibile'}
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              {hasQuot ? (
+                                <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-neutral-400">Quotazione Valeria:</span>
+                                  <span className="text-base font-mono font-black text-emerald-800">€ {wish.proposedCost}</span>
+                                </div>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
+                                  ⏳ In Lavorazione
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {wish.agencyNotes && (
+                            <div className="text-[11px] text-stone-700 bg-stone-50 p-2 rounded border border-stone-200">
+                              <strong className="text-emerald-950 font-semibold">Note Valeria:</strong> {wish.agencyNotes}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
+                            <span className="text-neutral-500">
+                              Coordinate bonifico disponibili al punto 4 sottostante. Causale: Saldo Desiderio {weddingData.weddingCode} - {wish.guestName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('wishes')}
+                              className="font-bold text-amber-800 hover:text-amber-950 underline shrink-0 cursor-pointer"
+                            >
+                              Dettagli &amp; Pagamento →
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             </div>
@@ -3767,6 +4197,303 @@ export default function GuestPortal({
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* 11. ALBUM DEL MATRIMONIO CONDIVISO CON GLI OSPITI (Fino a 30 foto a testa) */}
+      {/* ========================================================================= */}
+      {activeTab === 'album' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Header con Statistiche Quota Personale */}
+          <div className="bg-white border border-stone-200/90 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-100 pb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-2 rounded-xl bg-rose-50 text-rose-700">
+                    <Camera className="w-5 h-5" />
+                  </span>
+                  <h2 className="text-xl font-serif-luxury font-bold text-stone-900">
+                    {lang === 'it' ? 'Album del Matrimonio' : 'Wedding Photo Album'}
+                  </h2>
+                </div>
+                <p className="text-xs text-neutral-500 mt-1.5 max-w-2xl leading-relaxed">
+                  {lang === 'it' 
+                    ? 'Scatta dal vivo con la fotocamera del tuo telefono o carica gli scatti più belli dal tuo rullino. Le foto vengono ottimizzate e compresse automaticamente al momento dello scatto per restare sempre leggere e nitide!'
+                    : 'Snap live photos directly with your phone camera or upload favorites from your library. Photos are automatically compressed on capture to stay crisp and fast!'}
+                </p>
+              </div>
+
+              {/* Contatore Quota Ospite */}
+              <div className="bg-stone-50 border border-stone-200/80 rounded-2xl p-4 min-w-[240px] space-y-2 shrink-0">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-stone-700">
+                    {lang === 'it' ? 'I tuoi scatti caricate:' : 'Your uploaded photos:'}
+                  </span>
+                  <span className="font-mono font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md text-xs">
+                    {myPhotosCount} / {maxPhotosLimit}
+                  </span>
+                </div>
+                
+                {/* Barra di avanzamento quota */}
+                <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-300 ${myPhotosCount >= maxPhotosLimit ? 'bg-amber-600' : 'bg-rose-600'}`}
+                    style={{ width: `${Math.min(100, (myPhotosCount / maxPhotosLimit) * 100)}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-neutral-500">
+                  <span>{remainingSlots > 0 ? (lang === 'it' ? `${remainingSlots} scatti ancora disponibili` : `${remainingSlots} shots remaining`) : (lang === 'it' ? 'Limite 30 foto raggiunto' : 'Quota reached')}</span>
+                  <span className="font-semibold">{Math.round((myPhotosCount / maxPhotosLimit) * 100)}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Input file nascosti per Fotocamera e Galleria */}
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment" 
+              ref={cameraInputRef} 
+              onChange={(e) => handleUploadAlbumPhotos(e, true)} 
+              className="hidden" 
+            />
+            <input 
+              type="file" 
+              accept="image/*" 
+              multiple 
+              ref={galleryInputRef} 
+              onChange={(e) => handleUploadAlbumPhotos(e, false)} 
+              className="hidden" 
+            />
+
+            {/* Azioni Principali di Caricamento */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Bottone 1: Fotocamera Smartphone */}
+              <button
+                type="button"
+                disabled={isUploadingAlbumPhoto || myPhotosCount >= maxPhotosLimit}
+                onClick={() => cameraInputRef.current?.click()}
+                className={`p-5 rounded-2xl border-2 flex items-center gap-4 transition-all text-left cursor-pointer group shadow-2xs ${
+                  myPhotosCount >= maxPhotosLimit
+                    ? 'border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed opacity-60'
+                    : 'border-rose-200/90 bg-rose-50/40 hover:bg-rose-50 hover:border-rose-400 text-rose-950 hover:shadow-md'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-stone-900 group-hover:text-rose-700 transition-colors flex items-center gap-1.5">
+                    <span>{lang === 'it' ? 'Scatta con Fotocamera' : 'Snap with Phone Camera'}</span>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                      Live
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {lang === 'it' 
+                      ? 'Apre subito la fotocamera del tuo cellulare e comprime lo scatto.' 
+                      : 'Opens native camera and compresses photo in real-time.'}
+                  </p>
+                </div>
+              </button>
+
+              {/* Bottone 2: Importa da Galleria */}
+              <button
+                type="button"
+                disabled={isUploadingAlbumPhoto || myPhotosCount >= maxPhotosLimit}
+                onClick={() => galleryInputRef.current?.click()}
+                className={`p-5 rounded-2xl border-2 flex items-center gap-4 transition-all text-left cursor-pointer group shadow-2xs ${
+                  myPhotosCount >= maxPhotosLimit
+                    ? 'border-neutral-200 bg-neutral-100 text-neutral-400 cursor-not-allowed opacity-60'
+                    : 'border-stone-200 bg-stone-50/60 hover:bg-stone-50 hover:border-stone-400 text-stone-900 hover:shadow-md'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-stone-850 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-stone-900 group-hover:text-stone-800 transition-colors">
+                    {lang === 'it' ? 'Importa dalla Galleria' : 'Upload from Library'}
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {lang === 'it' 
+                      ? 'Seleziona una o più foto dal rullino del tuo smartphone o PC.' 
+                      : 'Choose one or multiple photos from your library.'}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* Stato di caricamento e compressione in corso */}
+            {isUploadingAlbumPhoto && (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3 text-amber-900 animate-pulse">
+                <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin shrink-0" />
+                <div className="text-xs font-semibold">
+                  {albumUploadProgress || (lang === 'it' ? 'Compressione e salvataggio scatto in corso...' : 'Compressing and uploading photo...')}
+                </div>
+              </div>
+            )}
+
+            {/* Messaggio di successo */}
+            {albumSuccessMsg && (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3 text-emerald-900 text-xs font-semibold animate-fade-in">
+                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                <span>{albumSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Navigazione Filtro: Tutte le foto vs Le mie foto */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-stone-100">
+              <div className="inline-flex p-1 bg-stone-100 rounded-xl text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setAlbumFilterMode('all')}
+                  className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                    albumFilterMode === 'all' 
+                      ? 'bg-white text-stone-900 shadow-2xs' 
+                      : 'text-neutral-500 hover:text-stone-800'
+                  }`}
+                >
+                  {lang === 'it' ? `Tutti gli Scatti (${allWeddingAlbumPhotos.length})` : `All Photos (${allWeddingAlbumPhotos.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAlbumFilterMode('mine')}
+                  className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+                    albumFilterMode === 'mine' 
+                      ? 'bg-white text-stone-900 shadow-2xs' 
+                      : 'text-neutral-500 hover:text-stone-800'
+                  }`}
+                >
+                  {lang === 'it' ? `I Miei Scatti (${myPhotosCount}/30)` : `My Photos (${myPhotosCount}/30)`}
+                </button>
+              </div>
+
+              <div className="text-[11px] text-neutral-400">
+                {lang === 'it' ? 'Gli sposi e Valeria vedono l\'album aggiornato in tempo reale' : 'The couple & Valeria can see the live updated album'}
+              </div>
+            </div>
+
+            {/* Griglia Foto Album Nozze */}
+            {(() => {
+              const displayedPhotos = albumFilterMode === 'mine' ? myAlbumPhotos : allWeddingAlbumPhotos;
+
+              if (displayedPhotos.length === 0) {
+                return (
+                  <div className="py-14 text-center space-y-3 bg-stone-50/60 rounded-2xl border border-dashed border-stone-200">
+                    <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <div className="text-sm font-bold text-stone-800">
+                      {albumFilterMode === 'mine'
+                        ? (lang === 'it' ? 'Non hai ancora caricato nessuna fotografia' : 'You haven\'t uploaded any photos yet')
+                        : (lang === 'it' ? 'Nessuna fotografia caricata nell\'album al momento' : 'No photos uploaded in the album yet')}
+                    </div>
+                    <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                      {lang === 'it'
+                        ? 'Scatta la prima foto con la fotocamera o importala dalla galleria per inaugurare l\'album delle nozze!'
+                        : 'Snap the first photo with your camera or import it from your gallery to start the album!'}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 pt-2">
+                  {displayedPhotos.map((photo) => {
+                    const isMyOwnPhoto = (photo.guestEmail || '').trim().toLowerCase() === currentGuestEmail;
+
+                    return (
+                      <div 
+                        key={photo.id}
+                        className="group relative rounded-2xl overflow-hidden border border-stone-200 bg-white shadow-2xs hover:shadow-md transition-all flex flex-col"
+                      >
+                        {/* Immagine con formato originale mantenuto e contenitore scuro */}
+                        <div 
+                          className="h-60 sm:h-64 w-full bg-stone-950 overflow-hidden cursor-pointer relative p-1.5 flex items-center justify-center"
+                          onClick={() => setPreviewAlbumPhoto(photo)}
+                        >
+                          <img 
+                            src={photo.url} 
+                            alt={photo.caption || 'Foto matrimonio'} 
+                            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-xs group-hover:scale-105 transition-transform duration-300"
+                            referrerPolicy="no-referrer"
+                          />
+
+                          {/* Badge Scatto Live Fotocamera */}
+                          {photo.takenWithCamera && (
+                            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-rose-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-md backdrop-blur-xs">
+                              <Smartphone className="w-3 h-3" />
+                              <span>{lang === 'it' ? 'Fotocamera' : 'Camera'}</span>
+                            </div>
+                          )}
+
+                          {/* Dimensione compressa trasparente */}
+                          {photo.sizeBytes && (
+                            <div className="absolute top-3 right-3 px-2 py-0.5 rounded-md bg-black/70 text-white/90 font-mono text-[9px] backdrop-blur-xs">
+                              {Math.round(photo.sizeBytes / 1024)} KB
+                            </div>
+                          )}
+
+                          {/* Hover Overlay Ingrandisci */}
+                          <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                            <span className="px-3.5 py-1.5 rounded-full bg-white/95 text-stone-900 text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                              <Eye className="w-3.5 h-3.5 text-rose-600" />
+                              <span>{lang === 'it' ? 'Ingrandisci' : 'Zoom'}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Informazioni Autore e Didascalia */}
+                        <div className="p-3.5 bg-white flex flex-col justify-between flex-1 border-t border-stone-100 space-y-2">
+                          <div>
+                            <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                              <span className="font-semibold text-stone-800 truncate max-w-[170px]">
+                                {photo.guestName || (lang === 'it' ? 'Ospite' : 'Guest')}
+                              </span>
+                              <span className="font-mono text-[10px] text-neutral-400">
+                                {photo.uploadedAt}
+                              </span>
+                            </div>
+                            <p className="text-xs text-stone-700 font-medium mt-1 line-clamp-2">
+                              {photo.caption || (lang === 'it' ? 'Scatto del matrimonio' : 'Wedding shot')}
+                            </p>
+                          </div>
+
+                          {/* Azioni Barra Inferiore */}
+                          <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadAlbumPhoto(photo)}
+                              className="text-stone-600 hover:text-stone-900 flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                              title={lang === 'it' ? 'Scarica foto' : 'Download photo'}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>{lang === 'it' ? 'Scarica' : 'Download'}</span>
+                            </button>
+
+                            {/* Tasto elimina solo se è una propria foto */}
+                            {isMyOwnPhoto && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAlbumPhoto(photo.id)}
+                                className="p-1 text-neutral-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                title={lang === 'it' ? 'Elimina questa foto' : 'Delete photo'}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Finestra di Riepilogo Sempre Attiva in Basso (Carrello della spesa in tempo reale) */}
       <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-neutral-300 p-3 sm:p-4 shadow-2xl z-40 flex items-center justify-between md:px-8">
         <div className="flex items-center gap-3">
@@ -3905,6 +4632,75 @@ export default function GuestPortal({
             <div className="p-4 bg-stone-800 text-white flex items-center justify-between text-xs border-t border-white/10">
               <span className="font-semibold text-sm">{previewGuestPhoto.caption || 'Foto del matrimonio'}</span>
               <span className="text-neutral-400 font-mono text-[11px]">Formato originale integro</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL LIGHTBOX FOTO ALBUM NOZZE INGRANDITA                                */}
+      {/* ========================================================================= */}
+      {previewAlbumPhoto && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xs p-4 animate-fade-in"
+          onClick={() => setPreviewAlbumPhoto(null)}
+        >
+          <div 
+            className="max-w-4xl w-full bg-stone-900 rounded-2xl overflow-hidden shadow-2xl border border-white/20 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewAlbumPhoto(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/80 text-white flex items-center justify-center hover:bg-rose-600 transition-colors cursor-pointer"
+              title="Chiudi ingrandimento"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
+
+            <div className="max-h-[78vh] min-h-[300px] bg-black p-3 flex items-center justify-center overflow-hidden">
+              <img 
+                src={previewAlbumPhoto.url} 
+                alt={previewAlbumPhoto.caption || 'Foto album nozze'} 
+                className="max-w-full max-h-[76vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            <div className="p-4 sm:p-5 bg-stone-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t border-white/10">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-stone-100">
+                    {previewAlbumPhoto.caption || 'Scatto del matrimonio'}
+                  </span>
+                  {previewAlbumPhoto.takenWithCamera && (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold">
+                      Fotocamera
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-neutral-400 mt-0.5 flex items-center gap-2">
+                  <span>Autore: <strong className="text-white">{previewAlbumPhoto.guestName}</strong></span>
+                  <span>•</span>
+                  <span>{previewAlbumPhoto.uploadedAt}</span>
+                  {previewAlbumPhoto.sizeBytes && (
+                    <>
+                      <span>•</span>
+                      <span className="font-mono text-neutral-400">{Math.round(previewAlbumPhoto.sizeBytes / 1024)} KB</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadAlbumPhoto(previewAlbumPhoto)}
+                  className="px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Scarica Foto</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -51,7 +51,10 @@ import {
   Menu,
   Heart,
   Lightbulb,
-  Printer
+  Printer,
+  Camera,
+  Smartphone,
+  HardDrive
 } from 'lucide-react';
 import HamburgerMenu, { MenuItem } from './HamburgerMenu';
 import { 
@@ -70,6 +73,7 @@ import {
   AdminSettings,
   GuestItem,
   WeddingAlertNotification,
+  WeddingAlbumPhoto,
   getSharedExperiencesDatabase,
   getSavedMasterExperiences,
   saveCustomMasterExperience
@@ -131,11 +135,12 @@ export default function AdminPanel({
   onPreviewAsGuest,
   onSendGmail
 }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'weddings' | 'hotels' | 'experiences' | 'transfers' | 'services' | 'guests' | 'chat' | 'suppliers' | 'settings' | 'wishlist' | 'payments' | 'catalog'>('weddings');
+  const [activeTab, setActiveTab] = useState<'weddings' | 'hotels' | 'experiences' | 'transfers' | 'services' | 'guests' | 'chat' | 'suppliers' | 'settings' | 'wishlist' | 'payments' | 'catalog' | 'albums'>('weddings');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
     { id: 'weddings', label: 'Matrimoni', icon: <Heart className="w-5 h-5" /> },
+    { id: 'albums', label: 'Album Nozze & Memoria', icon: <Camera className="w-5 h-5" /> },
     { id: 'hotels', label: 'Hotel', icon: <Building2 className="w-5 h-5" /> },
     { id: 'experiences', label: 'Esperienze', icon: <Compass className="w-5 h-5" /> },
     { id: 'transfers', label: 'Transfer', icon: <Car className="w-5 h-5" /> },
@@ -151,6 +156,12 @@ export default function AdminPanel({
   const [searchWedding, setSearchWedding] = useState('');
   const [selectedWeddingId, setSelectedWeddingId] = useState<string>(weddings[0]?.id || '');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Stato Gestione Album Nozze & Monitoraggio Memoria di Valeria
+  const [albumWeddingFilter, setAlbumWeddingFilter] = useState<string>('all');
+  const [albumGuestFilter, setAlbumGuestFilter] = useState<string>('all');
+  const [albumSearchQuery, setAlbumSearchQuery] = useState<string>('');
+  const [previewAdminAlbumPhoto, setPreviewAdminAlbumPhoto] = useState<WeddingAlbumPhoto | null>(null);
 
   // Import / Export JSON & Cascade Delete
   const importFileInputRef = useRef<HTMLInputElement>(null);
@@ -337,6 +348,245 @@ export default function AdminPanel({
         body: JSON.stringify({ wishes: updated })
       }).catch(() => {});
     }
+  };
+
+  // Gestione Quotazione, Proposta, WhatsApp ed Email per Valeria
+  const [editingProposalWish, setEditingProposalWish] = useState<TouristWishRequest | null>(null);
+  const [proposalCostInput, setProposalCostInput] = useState<string>('150');
+  const [proposalNotesInput, setProposalNotesInput] = useState<string>('');
+  const [proposalStatusInput, setProposalStatusInput] = useState<'RECEIVED' | 'PROPOSAL_READY' | 'CONFIRMED'>('PROPOSAL_READY');
+  const [copiedProposalWishId, setCopiedProposalWishId] = useState<string | null>(null);
+  const [emailFallbackModal, setEmailFallbackModal] = useState<{
+    isOpen: boolean;
+    wish: TouristWishRequest;
+    to: string;
+    subject: string;
+    bodyHtml: string;
+    bodyText: string;
+  } | null>(null);
+
+  const generateWishWhatsAppMessage = (wish: TouristWishRequest) => {
+    const defaultIban = adminSettings?.defaultIban || 'IT98 X 03002 03280 000000123456';
+    const defaultBic = adminSettings?.defaultBic || 'UNCRITM1B45';
+    const bankAccountHolder = adminSettings?.bankAccountHolder || adminSettings?.agencyLegalName || 'AD Marketing S.r.l.s.';
+    const bankName = adminSettings?.bankName || 'UniCredit Banca';
+    const relatedWed = weddings.find(w => {
+      const c = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+      const wc = (wish.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+      return c === wc;
+    });
+    const coupleNames = relatedWed?.coupleNames || wish.weddingCode || 'il vostro matrimonio in Puglia';
+    const cost = wish.proposedCost !== undefined ? wish.proposedCost : 0;
+    const causale = `Saldo Desiderio ${wish.weddingCode} - ${wish.guestName}`;
+
+    return (
+      `✨ *Apulian Wedding Concierge - Proposta Personalizzata* ✨\n\n` +
+      `Gentile *${wish.guestName}*,\n` +
+      `In merito al matrimonio di *${coupleNames}* (Codice: ${wish.weddingCode}), abbiamo preparato con cura la quotazione ufficiale per il tuo desiderio su misura:\n\n` +
+      `📌 *Attività:* ${wish.title}\n` +
+      `📝 *Richiesta:* "${wish.description}"\n` +
+      `📅 *Data indicativa:* ${wish.preferredDate || 'Da concordare'}\n` +
+      `👥 *Partecipanti:* ${wish.participantsCount} pax\n` +
+      (wish.agencyNotes ? `💡 *Dettagli e organizzazione:* ${wish.agencyNotes}\n\n` : `\n`) +
+      `💶 *QUOTAZIONE UFFICIALE: € ${cost}*\n\n` +
+      `💳 *MODALITÀ DI PAGAMENTO:* \n` +
+      `• *Bonifico Bancario:*\n` +
+      `  - IBAN: ${defaultIban}\n` +
+      `  - BIC/SWIFT: ${defaultBic}\n` +
+      `  - Intestatario: ${bankAccountHolder}\n` +
+      `  - Banca: ${bankName}\n` +
+      `  - Causale: ${causale}\n` +
+      (adminSettings?.stripePaymentLink ? `• *Oppure con Carta di Credito (Stripe):* ${adminSettings.stripePaymentLink}\n\n` : `\n`) +
+      `Per qualsiasi modifica, orario preferito o conferma, rispondi pure a questo messaggio oppure scrivici in chat nel portale ospiti.\n\n` +
+      `Un caro saluto,\n` +
+      `*Valeria · Head of Concierge*\n` +
+      `AD Marketing S.r.l.s. - Puglia\n` +
+      `WhatsApp Concierge: ${adminSettings?.valeriaPhone || '+39 340 1234567'}`
+    );
+  };
+
+  const generateWishEmailContent = (wish: TouristWishRequest) => {
+    const defaultIban = adminSettings?.defaultIban || 'IT98 X 03002 03280 000000123456';
+    const defaultBic = adminSettings?.defaultBic || 'UNCRITM1B45';
+    const bankAccountHolder = adminSettings?.bankAccountHolder || adminSettings?.agencyLegalName || 'AD Marketing S.r.l.s.';
+    const bankName = adminSettings?.bankName || 'UniCredit Banca';
+    const relatedWed = weddings.find(w => {
+      const c = (w.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+      const wc = (wish.weddingCode || '').trim().toUpperCase().replace(/[\s\-_]+/g, '');
+      return c === wc;
+    });
+    const coupleNames = relatedWed?.coupleNames || wish.weddingCode || 'Puglia';
+    const cost = wish.proposedCost !== undefined ? wish.proposedCost : 0;
+    const causale = `Saldo Desiderio ${wish.weddingCode} - ${wish.guestName}`;
+
+    const subject = `Proposta & Quotazione Ufficiale per "${wish.title}" - Matrimonio ${coupleNames} (${wish.weddingCode})`;
+
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2c2523; line-height: 1.6; max-width: 620px; margin: 0 auto; border: 1px solid #e5e5e5; border-radius: 12px; overflow: hidden; background: #ffffff;">
+        <div style="background: #1b1614; color: #ffffff; padding: 24px; text-align: center;">
+          <h1 style="margin: 0; font-size: 20px; font-weight: bold; letter-spacing: 0.5px;">APULIAN WEDDING CONCIERGE</h1>
+          <p style="margin: 4px 0 0 0; font-size: 12px; color: #c59b27; text-transform: uppercase; letter-spacing: 1px;">AD Marketing &bull; Puglia Experience</p>
+        </div>
+
+        <div style="padding: 24px 28px;">
+          <h2 style="color: #2b201a; font-size: 18px; margin-top: 0;">Gentile ${wish.guestName},</h2>
+          <p style="font-size: 14px; color: #4a4543;">
+            In merito alla tua richiesta espressa per il matrimonio di <strong>${coupleNames}</strong> (Codice: ${wish.weddingCode}), abbiamo verificato con i nostri partner locali ed elaborato la quotazione ufficiale:
+          </p>
+
+          <div style="background: #fbf7f4; border-left: 4px solid #c59b27; padding: 16px; border-radius: 6px; margin: 20px 0;">
+            <h3 style="margin: 0 0 8px 0; color: #5a3d28; font-size: 16px;">${wish.title}</h3>
+            <p style="margin: 0 0 10px 0; font-size: 13px; font-style: italic; color: #666;">"${wish.description}"</p>
+            <div style="font-size: 12px; color: #555;">
+              <span>&bull; Data indicativa: <strong>${wish.preferredDate || 'Flessibile / Da concordare'}</strong></span><br/>
+              <span>&bull; Partecipanti: <strong>${wish.participantsCount} pax</strong></span>
+            </div>
+            ${wish.agencyNotes ? `<div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e0d0c0; font-size: 13px; color: #3b281d;"><strong>Dettagli e organizzazione Valeria:</strong> ${wish.agencyNotes}</div>` : ''}
+            <div style="margin-top: 14px; background: #e8f5e9; border: 1px solid #a5d6a7; padding: 12px; border-radius: 8px; text-align: center;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #2e7d32; font-weight: bold; display: block;">QUOTAZIONE TOTALE PROPOSTA</span>
+              <span style="font-size: 24px; font-weight: 900; color: #1b5e20; font-family: monospace;">&euro; ${cost}</span>
+            </div>
+          </div>
+
+          <div style="background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 18px; margin: 22px 0;">
+            <h4 style="margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #333;">Modalità di Pagamento &amp; Coordinate Bancarie (Bonifico)</h4>
+            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+              <tr><td style="padding: 4px 0; color: #666; width: 110px;">IBAN:</td><td style="padding: 4px 0; font-family: monospace; font-weight: bold; color: #111;">${defaultIban}</td></tr>
+              <tr><td style="padding: 4px 0; color: #666;">BIC / SWIFT:</td><td style="padding: 4px 0; font-family: monospace; color: #333;">${defaultBic}</td></tr>
+              <tr><td style="padding: 4px 0; color: #666;">Intestatario:</td><td style="padding: 4px 0; font-weight: bold; color: #333;">${bankAccountHolder}</td></tr>
+              <tr><td style="padding: 4px 0; color: #666;">Banca:</td><td style="padding: 4px 0; color: #333;">${bankName}</td></tr>
+              <tr><td style="padding: 4px 0; color: #666;">Causale:</td><td style="padding: 4px 0; font-family: monospace; font-weight: bold; color: #b45309;">${causale}</td></tr>
+            </table>
+            ${adminSettings?.stripePaymentLink ? `
+              <div style="margin-top: 14px; text-align: center;">
+                <a href="${adminSettings.stripePaymentLink}" target="_blank" style="display: inline-block; background: #111827; color: #ffffff; text-decoration: none; padding: 10px 20px; font-size: 12px; font-weight: bold; border-radius: 6px;">Paga Online con Carta di Credito (Stripe) &rarr;</a>
+              </div>
+            ` : ''}
+          </div>
+
+          <p style="font-size: 13px; color: #555;">
+            Puoi confermare la proposta accedendo anche al portale ospite, oppure rispondendo a questa mail.
+          </p>
+
+          <div style="margin-top: 30px; padding-top: 16px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
+            <strong style="color: #222;">Valeria &bull; Head of Concierge</strong><br/>
+            AD Marketing S.r.l.s. &bull; Palagianello (TA) - Puglia<br/>
+            WhatsApp Assistenza: ${adminSettings?.valeriaPhone || '+39 340 1234567'}<br/>
+            Email: ${adminSettings?.adminNotificationEmail || 'info@admarketing.it'}
+          </div>
+        </div>
+      </div>
+    `;
+
+    return { subject, html, text: generateWishWhatsAppMessage(wish) };
+  };
+
+  const handleCopyWishProposal = (wish: TouristWishRequest) => {
+    const text = generateWishWhatsAppMessage(wish);
+    navigator.clipboard.writeText(text);
+    setCopiedProposalWishId(wish.id);
+    setAlertActionToast(`✓ Testo con quotazione (€${wish.proposedCost || 0}) e coordinate IBAN copiato negli appunti!`);
+    setTimeout(() => {
+      setCopiedProposalWishId(null);
+      setAlertActionToast(null);
+    }, 3500);
+  };
+
+  const handleSendWishWhatsApp = (wish: TouristWishRequest) => {
+    const text = generateWishWhatsAppMessage(wish);
+    navigator.clipboard.writeText(text);
+    const encoded = encodeURIComponent(text);
+    const cleanPhone = (wish.guestPhone || '').replace(/[^0-9]/g, '');
+    const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encoded}` : `https://api.whatsapp.com/send?text=${encoded}`;
+    window.open(url, '_blank');
+    setAlertActionToast(`Apertura WhatsApp... Il testo con quotazione e IBAN è stato preimpostato!`);
+    setTimeout(() => setAlertActionToast(null), 3500);
+  };
+
+  const handleSendWishEmail = async (wish: TouristWishRequest) => {
+    const { subject, html, text } = generateWishEmailContent(wish);
+    const recipientEmail = (wish.guestEmail || '').trim();
+
+    if (!recipientEmail) {
+      alert('Questo ospite non ha un indirizzo email registrato. Puoi usare il tasto WhatsApp o copiare il testo.');
+      return;
+    }
+
+    if (onSendGmail) {
+      try {
+        setAlertActionToast(`Invio mail ufficiale a ${recipientEmail}...`);
+        await onSendGmail({
+          to: recipientEmail,
+          subject,
+          body: html
+        });
+        setAlertActionToast(`✓ Email con quotazione e coordinate inviata con successo via Gmail a ${recipientEmail}!`);
+        setTimeout(() => setAlertActionToast(null), 3500);
+        return;
+      } catch (err) {
+        console.warn('Gmail OAuth non riuscito o sessione non attiva, apertura fallback mailto:', err);
+      }
+    }
+
+    // Fallback: apri modal di anteprima e mailto
+    navigator.clipboard.writeText(text);
+    setEmailFallbackModal({
+      isOpen: true,
+      wish,
+      to: recipientEmail,
+      subject,
+      bodyHtml: html,
+      bodyText: text
+    });
+    
+    // Prova ad aprire il client mail locale
+    const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    window.location.href = mailtoUrl;
+    setAlertActionToast(`Apertura client di posta. Il testo completo con coordinate è stato copiato negli appunti.`);
+    setTimeout(() => setAlertActionToast(null), 4000);
+  };
+
+  const handleOpenProposalModal = (wish: TouristWishRequest) => {
+    setEditingProposalWish(wish);
+    setProposalCostInput(wish.proposedCost !== undefined ? String(wish.proposedCost) : '150');
+    setProposalNotesInput(wish.agencyNotes || 'Proposta organizzata su misura con fornitori partner locali in Puglia.');
+    setProposalStatusInput(wish.status === 'CONFIRMED' ? 'CONFIRMED' : 'PROPOSAL_READY');
+  };
+
+  const handleSaveProposalModal = (andAction?: 'whatsapp' | 'email' | 'copy') => {
+    if (!editingProposalWish) return;
+    const costVal = Number(proposalCostInput) || 0;
+    const updatedWish: TouristWishRequest = {
+      ...editingProposalWish,
+      proposedCost: costVal,
+      agencyNotes: proposalNotesInput.trim(),
+      status: proposalStatusInput
+    };
+
+    const exists = wishRequests.some(w => w.id === updatedWish.id);
+    const nextWishes = exists 
+      ? wishRequests.map(w => w.id === updatedWish.id ? updatedWish : w)
+      : [updatedWish, ...wishRequests];
+    onUpdateWishRequests(nextWishes);
+
+    fetch('/api/wishes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedWish)
+    }).catch(() => {});
+
+    setAlertActionToast(`✓ Quotazione di €${costVal} e note salvate per ${updatedWish.guestName}!`);
+    setTimeout(() => setAlertActionToast(null), 3500);
+
+    if (andAction === 'whatsapp') {
+      handleSendWishWhatsApp(updatedWish);
+    } else if (andAction === 'email') {
+      handleSendWishEmail(updatedWish);
+    } else if (andAction === 'copy') {
+      handleCopyWishProposal(updatedWish);
+    }
+
+    setEditingProposalWish(null);
   };
 
   useEffect(() => {
@@ -5176,87 +5426,83 @@ export default function AdminPanel({
                           )}
                         </div>
 
-                        {/* Azioni Amministrazione */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const cost = prompt('Inserisci il costo totale proposto per questa esperienza (€):', wish.proposedCost?.toString() || '150');
-                              if (cost !== null && !isNaN(Number(cost))) {
-                                const notes = prompt('Inserisci una nota informativa per l\'ospite (opzionale):', wish.agencyNotes || 'Proposta elaborata dai nostri partner locali.');
-                                const updatedItem: TouristWishRequest = {
-                                  ...wish,
-                                  proposedCost: Number(cost),
-                                  agencyNotes: notes || wish.agencyNotes,
-                                  status: 'PROPOSAL_READY' as const
-                                };
-                                const exists = wishRequests.some(w => w.id === wish.id);
-                                const updatedWishes = exists 
-                                  ? wishRequests.map(w => w.id === wish.id ? updatedItem : w)
-                                  : [updatedItem, ...wishRequests];
-                                onUpdateWishRequests(updatedWishes);
-                                fetch('/api/wishes', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(updatedItem)
-                                }).catch(() => {});
-                                setAlertActionToast(`Proposta di €${cost} salvata per ${wish.guestName}!`);
-                                setTimeout(() => setAlertActionToast(null), 3000);
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-stone-800 text-white text-[11px] font-bold rounded-lg hover:bg-stone-900 transition-colors cursor-pointer flex items-center gap-1"
-                          >
-                            <DollarSign className="w-3.5 h-3.5 text-amber-400" />
-                            <span>{wish.proposedCost ? 'Modifica Quotazione' : 'Definisci Quotazione'}</span>
-                          </button>
+                        {/* Coordinate Bancarie & Anteprima Pagamento associata */}
+                        <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/80 text-[11px] text-amber-950 space-y-1.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-bold flex items-center gap-1 text-amber-900">
+                              <CreditCard className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Coordinate Bonifico &amp; Saldo Concierge</span>
+                            </span>
+                            <span className="font-mono text-[10px] text-neutral-600 bg-white px-2 py-0.5 rounded border border-amber-200">
+                              IBAN: {adminSettings?.defaultIban || 'IT98 X 03002 03280 000000123456'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-neutral-600 flex flex-wrap items-center gap-3">
+                            <span>Intestatario: <strong>{adminSettings?.bankAccountHolder || adminSettings?.agencyLegalName || 'AD Marketing S.r.l.s.'}</strong></span>
+                            <span>•</span>
+                            <span>Causale: <strong className="font-mono text-amber-900">Saldo Desiderio {wish.weddingCode} - {wish.guestName}</strong></span>
+                            {adminSettings?.stripePaymentLink && (
+                              <>
+                                <span>•</span>
+                                <span className="text-emerald-700 font-semibold">Stripe Link Attivo ✓</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
 
-                          {wish.guestEmail && onSendGmail && (
+                        {/* Azioni Amministrazione e Comunicazione */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-stone-100">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Definisci / Modifica Quotazione */}
+                            <button 
+                              type="button"
+                              onClick={() => handleOpenProposalModal(wish)}
+                              className="px-3 py-1.5 bg-stone-800 text-white text-[11px] font-bold rounded-lg hover:bg-stone-900 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                              title="Imposta quotazione e note per l'ospite"
+                            >
+                              <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+                              <span>{wish.proposedCost !== undefined ? `Quotazione (€${wish.proposedCost})` : 'Definisci Quotazione'}</span>
+                            </button>
+
+                            {/* Copia Testo per WhatsApp / Email */}
                             <button
                               type="button"
-                              onClick={async () => {
-                                const costVal = wish.proposedCost || 150;
-                                const emailSubject = `Proposta Personalizzata Concierge per "${wish.title}" - Matrimonio ${wish.weddingCode}`;
-                                const emailBody = `
-                                  <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px;">
-                                    <h2 style="color: #4a3728;">Gentile ${wish.guestName},</h2>
-                                    <p>Abbiamo elaborato la proposta personalizzata per il tuo desiderio espressamente richiesto per il matrimonio <strong>${wish.weddingCode}</strong>:</p>
-                                    <div style="background: #fdf8f3; padding: 15px; border-left: 4px solid #c59b27; margin: 15px 0;">
-                                      <h3 style="margin: 0 0 5px 0; color: #7a5c18;">${wish.title}</h3>
-                                      <p style="margin: 0; font-size: 14px; italic;">"${wish.description}"</p>
-                                      <p style="margin: 10px 0 0 0; font-weight: bold; font-size: 16px; color: #2e7d32;">
-                                        Costo Proposto per ${wish.participantsCount} pax: &euro;${costVal}
-                                      </p>
-                                    </div>
-                                    ${wish.agencyNotes ? `<p><strong>Dettagli organizzativi:</strong> ${wish.agencyNotes}</p>` : ''}
-                                    <p>Puoi consultare e confermare la proposta accedendo direttamente al tuo portale ospite.</p>
-                                    <p style="margin-top: 25px; font-size: 12px; color: #888;">
-                                      Valeria & AD Marketing Concierge Puglia<br/>
-                                      WhatsApp Assistenza: +39 340 1234567
-                                    </p>
-                                  </div>
-                                `;
+                              onClick={() => handleCopyWishProposal(wish)}
+                              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 border ${
+                                copiedProposalWishId === wish.id
+                                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                  : 'bg-white hover:bg-stone-100 text-stone-800 border-stone-300 shadow-2xs'
+                              }`}
+                              title="Copia negli appunti il testo formattato completo con quotazione, coordinate bancarie IBAN e causale"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-amber-600" />
+                              <span>{copiedProposalWishId === wish.id ? '✓ Copiato negli Appunti!' : 'Copia Testo (WA/Mail)'}</span>
+                            </button>
 
-                                try {
-                                  setAlertActionToast(`Invio mail a ${wish.guestEmail}...`);
-                                  await onSendGmail({
-                                    to: wish.guestEmail,
-                                    subject: emailSubject,
-                                    body: emailBody
-                                  });
-                                  setAlertActionToast(`✓ Email inviata con successo a ${wish.guestEmail}!`);
-                                } catch (err) {
-                                  setAlertActionToast('Errore durante l\'invio dell\'email via Gmail.');
-                                } finally {
-                                  setTimeout(() => setAlertActionToast(null), 3500);
-                                }
-                              }}
-                              className="px-3 py-1.5 bg-amber-700 text-white text-[11px] font-bold rounded-lg hover:bg-amber-800 transition-colors cursor-pointer flex items-center gap-1"
+                            {/* Invia su WhatsApp */}
+                            <button
+                              type="button"
+                              onClick={() => handleSendWishWhatsApp(wish)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                              title="Apri WhatsApp con il messaggio precompilato (quotazione e modalità di pagamento)"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>Invia su WhatsApp</span>
+                            </button>
+
+                            {/* Invia Email con IBAN */}
+                            <button
+                              type="button"
+                              onClick={() => handleSendWishEmail(wish)}
+                              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                              title="Invia email ufficiale all'ospite con preventivo e coordinate bancarie"
                             >
                               <Mail className="w-3.5 h-3.5" />
-                              <span>Invia Email Proposta</span>
+                              <span>Invia Email con IBAN</span>
                             </button>
-                          )}
+                          </div>
 
+                          {/* Stato Confermato */}
                           <button
                             type="button"
                             onClick={() => {
@@ -5275,13 +5521,13 @@ export default function AdminPanel({
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(updatedItem)
                               }).catch(() => {});
-                              setAlertActionToast(`Stato desiderio aggiornato a: ${newStatus}`);
+                              setAlertActionToast(`Stato desiderio aggiornato a: ${newStatus === 'CONFIRMED' ? 'Confermato 🟢' : 'In Attesa'}`);
                               setTimeout(() => setAlertActionToast(null), 3000);
                             }}
-                            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors cursor-pointer ${
+                            className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors cursor-pointer shrink-0 ${
                               wish.status === 'CONFIRMED'
                                 ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-emerald-100 text-emerald-950 border border-emerald-300 hover:bg-emerald-200'
                             }`}
                           >
                             {wish.status === 'CONFIRMED' ? 'Ripristina in Attesa' : 'Segna Confermato 🟢'}
@@ -6013,6 +6259,502 @@ export default function AdminPanel({
                       </div>
                     );
                   })
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ========================================================================= */}
+        {/* SEZIONE: ALBUM NOZZE & MONITORAGGIO MEMORIA UTILIZZATA (VALERIA)          */}
+        {/* ========================================================================= */}
+        {activeTab === 'albums' && (() => {
+          const targetWeddings = albumWeddingFilter === 'all'
+            ? weddings
+            : weddings.filter(w => w.id === albumWeddingFilter || (w.weddingCode || '').toUpperCase() === albumWeddingFilter.toUpperCase());
+
+          interface AdminPhotoItem extends WeddingAlbumPhoto {
+            weddingId: string;
+            weddingCode: string;
+            coupleNames: string;
+          }
+
+          const allPhotosCombined: AdminPhotoItem[] = [];
+          targetWeddings.forEach(w => {
+            (w.weddingAlbumPhotos || []).forEach(p => {
+              allPhotosCombined.push({
+                ...p,
+                weddingId: w.id,
+                weddingCode: w.weddingCode || w.id,
+                coupleNames: w.coupleNames || w.weddingCode
+              });
+            });
+          });
+
+          // Calcolo memoria totale in byte e KB/MB
+          const totalBytes = allPhotosCombined.reduce((sum, p) => {
+            const b = p.sizeBytes || Math.round((p.url?.length || 0) * 0.75);
+            return sum + b;
+          }, 0);
+
+          const totalKB = Math.round(totalBytes / 1024);
+          const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+          const avgKBPerPhoto = allPhotosCombined.length > 0 ? Math.round(totalKB / allPhotosCombined.length) : 0;
+
+          const cameraCount = allPhotosCombined.filter(p => p.takenWithCamera).length;
+          const galleryCount = allPhotosCombined.length - cameraCount;
+
+          // Raggruppamento per ospite
+          const guestGroupsMap = new Map<string, {
+            guestEmail: string;
+            guestName: string;
+            weddingCode: string;
+            weddingId: string;
+            coupleNames: string;
+            photos: AdminPhotoItem[];
+            totalBytes: number;
+            cameraCount: number;
+            lastUpload: string;
+          }>();
+
+          allPhotosCombined.forEach(p => {
+            const key = `${p.weddingCode}___${(p.guestEmail || p.guestName).trim().toLowerCase()}`;
+            if (!guestGroupsMap.has(key)) {
+              guestGroupsMap.set(key, {
+                guestEmail: p.guestEmail,
+                guestName: p.guestName,
+                weddingCode: p.weddingCode,
+                weddingId: p.weddingId,
+                coupleNames: p.coupleNames,
+                photos: [],
+                totalBytes: 0,
+                cameraCount: 0,
+                lastUpload: p.uploadedAt
+              });
+            }
+            const grp = guestGroupsMap.get(key)!;
+            grp.photos.push(p);
+            const b = p.sizeBytes || Math.round((p.url?.length || 0) * 0.75);
+            grp.totalBytes += b;
+            if (p.takenWithCamera) grp.cameraCount++;
+            grp.lastUpload = p.uploadedAt;
+          });
+
+          const guestGroups = Array.from(guestGroupsMap.values());
+
+          // Filtro foto
+          let filteredPhotos = allPhotosCombined;
+          if (albumGuestFilter !== 'all') {
+            filteredPhotos = filteredPhotos.filter(p => 
+              (p.guestEmail || '').toLowerCase() === albumGuestFilter.toLowerCase() ||
+              (p.guestName || '').toLowerCase() === albumGuestFilter.toLowerCase()
+            );
+          }
+          if (albumSearchQuery.trim()) {
+            const q = albumSearchQuery.toLowerCase();
+            filteredPhotos = filteredPhotos.filter(p => 
+              (p.guestName || '').toLowerCase().includes(q) ||
+              (p.guestEmail || '').toLowerCase().includes(q) ||
+              (p.caption || '').toLowerCase().includes(q) ||
+              (p.weddingCode || '').toLowerCase().includes(q)
+            );
+          }
+
+          const handleDeletePhotoByValeria = (targetWeddingId: string, photoId: string) => {
+            if (!confirm('Vuoi eliminare questa fotografia dall\'album del matrimonio?')) return;
+            const nextWeddings = weddings.map(w => {
+              if (w.id === targetWeddingId || (w.weddingCode || '').toUpperCase() === targetWeddingId.toUpperCase()) {
+                return {
+                  ...w,
+                  weddingAlbumPhotos: (w.weddingAlbumPhotos || []).filter(p => p.id !== photoId)
+                };
+              }
+              return w;
+            });
+            onUpdateWeddings(nextWeddings);
+            const updated = nextWeddings.find(w => w.id === targetWeddingId || (w.weddingCode || '').toUpperCase() === targetWeddingId.toUpperCase());
+            if (updated) saveWeddingToFirestore(updated).catch(() => {});
+          };
+
+          const handleDownloadSinglePhoto = (photo: AdminPhotoItem) => {
+            const a = document.createElement('a');
+            a.href = photo.url;
+            a.download = `valeria_scatto_${photo.weddingCode}_${photo.guestName.replace(/\s+/g, '_')}_${photo.id}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          };
+
+          return (
+            <div className="space-y-6 animate-fade-in">
+              {/* Header Sezione Valeria */}
+              <div className="bg-white border border-neutral-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="p-2 rounded-2xl bg-amber-100 text-amber-900">
+                        <Camera className="w-5 h-5" />
+                      </span>
+                      <h2 className="text-xl font-serif-luxury font-bold text-stone-900">
+                        Album Nozze &amp; Monitoraggio Memoria Utilizzata
+                      </h2>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1 max-w-2xl leading-relaxed">
+                      Pannello di controllo per Valeria: monitora in tempo reale la quantità di fotografie caricate dagli invitati per ciascun matrimonio e la memoria storage consumata (in KB e MB) con compressione automatica on-the-fly.
+                    </p>
+                  </div>
+
+                  {/* Filtro Matrimonio */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-semibold text-stone-700">Matrimonio:</span>
+                    <select
+                      value={albumWeddingFilter}
+                      onChange={(e) => {
+                        setAlbumWeddingFilter(e.target.value);
+                        setAlbumGuestFilter('all');
+                      }}
+                      className="p-2 text-xs bg-stone-50 border border-neutral-300 rounded-xl font-medium text-stone-800 cursor-pointer"
+                    >
+                      <option value="all">Tutti i Matrimoni ({weddings.length})</option>
+                      {weddings.map(w => (
+                        <option key={w.id} value={w.id}>
+                          {w.coupleNames} ({w.weddingCode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 4 Card KPI Memoria & Quantità Foto */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* KPI 1: Quantità Totale Foto */}
+                  <div className="p-5 rounded-2xl bg-stone-50 border border-neutral-200/90 space-y-2">
+                    <div className="flex items-center justify-between text-neutral-500 text-xs">
+                      <span className="font-medium">Quantità Foto Caricate</span>
+                      <Camera className="w-4 h-4 text-amber-800" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-stone-900">
+                      {allPhotosCombined.length} <span className="text-xs font-normal text-neutral-500">foto</span>
+                    </div>
+                    <div className="text-[11px] text-neutral-500 flex items-center gap-1">
+                      <Smartphone className="w-3.5 h-3.5 text-rose-600" />
+                      <span>{cameraCount} da fotocamera · {galleryCount} da rullino</span>
+                    </div>
+                  </div>
+
+                  {/* KPI 2: Memoria Utilizzata Totale */}
+                  <div className="p-5 rounded-2xl bg-rose-50/50 border border-rose-200/80 space-y-2">
+                    <div className="flex items-center justify-between text-rose-900 text-xs">
+                      <span className="font-medium">Memoria Utilizzata Totale</span>
+                      <HardDrive className="w-4 h-4 text-rose-700" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-rose-950">
+                      {totalMB} <span className="text-xs font-normal text-rose-700">MB</span>
+                      <span className="text-xs font-normal text-neutral-400 ml-1.5">({totalKB.toLocaleString()} KB)</span>
+                    </div>
+                    <div className="text-[11px] text-rose-800">
+                      Dimensione stimata storage Firestore &amp; Web
+                    </div>
+                  </div>
+
+                  {/* KPI 3: Dimensione Media per Foto */}
+                  <div className="p-5 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 space-y-2">
+                    <div className="flex items-center justify-between text-emerald-900 text-xs">
+                      <span className="font-medium">Peso Medio per Scatto</span>
+                      <Sparkles className="w-4 h-4 text-emerald-700" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-emerald-950">
+                      {avgKBPerPhoto} <span className="text-xs font-normal text-emerald-700">KB / foto</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-800 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Compressione attiva (~100KB target)</span>
+                    </div>
+                  </div>
+
+                  {/* KPI 4: Ospiti Contributori */}
+                  <div className="p-5 rounded-2xl bg-sky-50/50 border border-sky-200/80 space-y-2">
+                    <div className="flex items-center justify-between text-sky-900 text-xs">
+                      <span className="font-medium">Invitati Partecipanti</span>
+                      <Users className="w-4 h-4 text-sky-700" />
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-sky-950">
+                      {guestGroups.length} <span className="text-xs font-normal text-sky-700">ospiti</span>
+                    </div>
+                    <div className="text-[11px] text-sky-800">
+                      Limite per ciascun ospite: max 30 scatti
+                    </div>
+                  </div>
+                </div>
+
+                {/* Barra di Monitoraggio Storage */}
+                <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-stone-800 flex items-center gap-1.5">
+                      <HardDrive className="w-4 h-4 text-stone-600" />
+                      <span>Capacità Storage Utilizzata Album Nozze:</span>
+                    </span>
+                    <span className="font-mono font-bold text-stone-800">
+                      {totalMB} MB / 100 MB <span className="text-neutral-400 font-normal">({((totalBytes / (100 * 1024 * 1024)) * 100).toFixed(1)}%)</span>
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-neutral-200 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-600 transition-all duration-300 rounded-full"
+                      style={{ width: `${Math.min(100, Math.max(2, (totalBytes / (100 * 1024 * 1024)) * 100))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-neutral-500">
+                    <span>Ottimizzazione automatica delle immagini ad ogni scatto per prevenire saturazione di memoria.</span>
+                    <span className="text-emerald-700 font-semibold">Stato Server: Ottimale</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabella Dettagliata per Ospite: Quantità e Memoria Utilizzata */}
+              <div className="bg-white border border-neutral-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-stone-900 font-serif-luxury">
+                      Riepilogo Consumo e Scatti per Ospite (Max 30 foto a persona)
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      Visualizza esattamente quante foto ha caricato ciascun ospite e quanta memoria occupa.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-semibold bg-stone-100 px-3 py-1 rounded-xl text-stone-700">
+                    {guestGroups.length} Ospiti Attivi
+                  </span>
+                </div>
+
+                {guestGroups.length === 0 ? (
+                  <div className="py-12 text-center text-neutral-400 text-xs">
+                    Nessun ospite ha ancora caricato fotografie in questo matrimonio.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-neutral-200 text-neutral-500 uppercase text-[10px] tracking-wider font-semibold">
+                          <th className="py-3 px-3">Ospite / Invitato</th>
+                          <th className="py-3 px-3">Matrimonio</th>
+                          <th className="py-3 px-3 text-center">Quantità Scatti (Max 30)</th>
+                          <th className="py-3 px-3 text-right">Memoria Occupata</th>
+                          <th className="py-3 px-3">Origine Scatto</th>
+                          <th className="py-3 px-3">Ultimo Upload</th>
+                          <th className="py-3 px-3 text-center">Azioni</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100">
+                        {guestGroups.map(grp => {
+                          const grpMB = (grp.totalBytes / (1024 * 1024)).toFixed(2);
+                          const grpKB = Math.round(grp.totalBytes / 1024);
+                          const pctQuota = Math.round((grp.photos.length / 30) * 100);
+
+                          return (
+                            <tr key={`${grp.weddingCode}-${grp.guestEmail}`} className="hover:bg-neutral-50/70 transition-colors">
+                              <td className="py-3 px-3">
+                                <div className="font-bold text-stone-900">{grp.guestName}</div>
+                                <div className="text-[11px] text-neutral-400 font-mono">{grp.guestEmail}</div>
+                              </td>
+
+                              <td className="py-3 px-3">
+                                <span className="font-semibold text-stone-800">{grp.coupleNames}</span>
+                                <div className="text-[10px] font-mono text-neutral-400">{grp.weddingCode}</div>
+                              </td>
+
+                              <td className="py-3 px-3 text-center">
+                                <div className="inline-flex flex-col items-center">
+                                  <span className="font-mono font-bold text-stone-900">
+                                    {grp.photos.length} / 30
+                                  </span>
+                                  <div className="w-20 bg-neutral-200 h-1.5 rounded-full overflow-hidden mt-1">
+                                    <div 
+                                      className={`h-full ${grp.photos.length >= 30 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                                      style={{ width: `${Math.min(100, pctQuota)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 text-right">
+                                <span className="font-mono font-bold text-rose-900">{grpMB} MB</span>
+                                <div className="text-[10px] text-neutral-400 font-mono">{grpKB} KB</div>
+                              </td>
+
+                              <td className="py-3 px-3 text-neutral-600">
+                                <div className="flex items-center gap-1 text-[11px]">
+                                  <Smartphone className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                  <span>{grp.cameraCount} cam · {grp.photos.length - grp.cameraCount} rullino</span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 text-neutral-500 font-mono text-[11px]">
+                                {grp.lastUpload}
+                              </td>
+
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setAlbumGuestFilter(grp.guestEmail)}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-[11px] transition-colors cursor-pointer"
+                                >
+                                  Ispeziona Foto
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Galleria Esplora Fotografie Caricate */}
+              <div className="bg-white border border-neutral-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-stone-900 font-serif-luxury">
+                      Esplora &amp; Modera Fotografie ({filteredPhotos.length} scatti)
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      Visualizza a pieno schermo, scarica o rimuovi fotografie caricate dagli invitati.
+                    </p>
+                  </div>
+
+                  {/* Barra Ricerca e Filtro Ospite */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-neutral-400" />
+                      <input
+                        type="text"
+                        placeholder="Cerca per ospite, didascalia..."
+                        value={albumSearchQuery}
+                        onChange={(e) => setAlbumSearchQuery(e.target.value)}
+                        className="pl-8 pr-3 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl w-48 sm:w-56"
+                      />
+                    </div>
+
+                    <select
+                      value={albumGuestFilter}
+                      onChange={(e) => setAlbumGuestFilter(e.target.value)}
+                      className="p-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl text-stone-800 font-medium cursor-pointer"
+                    >
+                      <option value="all">Tutti gli Ospiti ({allPhotosCombined.length})</option>
+                      {guestGroups.map(grp => (
+                        <option key={grp.guestEmail} value={grp.guestEmail}>
+                          {grp.guestName} ({grp.photos.length} foto)
+                        </option>
+                      ))}
+                    </select>
+
+                    {albumGuestFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => setAlbumGuestFilter('all')}
+                        className="px-2.5 py-1 text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl font-semibold cursor-pointer"
+                      >
+                        Reset Filtro
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Griglia Scatti Valeria */}
+                {filteredPhotos.length === 0 ? (
+                  <div className="py-14 text-center text-neutral-400 text-xs">
+                    Nessuna fotografia corrisponde ai criteri di ricerca o filtro.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredPhotos.map((photo) => {
+                      const photoKB = photo.sizeBytes 
+                        ? Math.round(photo.sizeBytes / 1024) 
+                        : Math.round((photo.url?.length || 0) * 0.75 / 1024);
+
+                      return (
+                        <div 
+                          key={photo.id}
+                          className="group rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-2xs hover:shadow-md transition-all flex flex-col"
+                        >
+                          <div 
+                            className="h-48 w-full bg-stone-950 overflow-hidden cursor-pointer relative p-1.5 flex items-center justify-center"
+                            onClick={() => setPreviewAdminAlbumPhoto(photo)}
+                          >
+                            <img 
+                              src={photo.url} 
+                              alt={photo.caption || 'Foto matrimonio'} 
+                              className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-xs group-hover:scale-105 transition-transform duration-300"
+                              referrerPolicy="no-referrer"
+                            />
+
+                            {/* Badge Origine Scatto */}
+                            {photo.takenWithCamera && (
+                              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-600/90 text-white text-[9px] font-bold flex items-center gap-1 shadow-md">
+                                <Smartphone className="w-2.5 h-2.5" />
+                                <span>Fotocamera</span>
+                              </div>
+                            )}
+
+                            {/* Badge Dimensione Memoria */}
+                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/75 text-white font-mono text-[9px]">
+                              {photoKB} KB
+                            </div>
+
+                            <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                              <span className="px-3 py-1.5 rounded-full bg-white/95 text-stone-900 text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                                <Eye className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Ingrandisci</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="p-3 bg-white flex flex-col justify-between flex-1 border-t border-neutral-100 space-y-2">
+                            <div>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-stone-900 truncate max-w-[130px]">
+                                  {photo.guestName}
+                                </span>
+                                <span className="font-mono text-[10px] text-neutral-400">
+                                  {photo.uploadedAt}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-neutral-500 font-mono">
+                                Matrimonio: {photo.weddingCode}
+                              </div>
+                              <p className="text-xs text-stone-700 font-medium mt-1 line-clamp-2">
+                                {photo.caption || 'Scatto invitato'}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadSinglePhoto(photo)}
+                                className="text-stone-600 hover:text-stone-900 flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                                title="Scarica fotografia"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Scarica</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePhotoByValeria(photo.weddingId, photo.id)}
+                                className="p-1 text-neutral-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Elimina fotografia dall'album"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
@@ -7597,6 +8339,365 @@ export default function AdminPanel({
               >
                 Annulla
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LIGHTBOX FOTO ALBUM NOZZE PER VALERIA */}
+      {previewAdminAlbumPhoto && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xs p-4 animate-fade-in"
+          onClick={() => setPreviewAdminAlbumPhoto(null)}
+        >
+          <div 
+            className="max-w-4xl w-full bg-stone-900 rounded-2xl overflow-hidden shadow-2xl border border-white/20 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewAdminAlbumPhoto(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/80 text-white flex items-center justify-center hover:bg-rose-600 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="max-h-[78vh] min-h-[300px] bg-black p-3 flex items-center justify-center overflow-hidden">
+              <img 
+                src={previewAdminAlbumPhoto.url} 
+                alt={previewAdminAlbumPhoto.caption || 'Foto matrimonio'} 
+                className="max-w-full max-h-[76vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            <div className="p-4 sm:p-5 bg-stone-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t border-white/10">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-stone-100">
+                    {previewAdminAlbumPhoto.caption || 'Scatto del matrimonio'}
+                  </span>
+                  {previewAdminAlbumPhoto.takenWithCamera && (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold">
+                      Fotocamera
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-neutral-400 mt-1 flex flex-wrap items-center gap-2">
+                  <span>Ospite: <strong className="text-white">{previewAdminAlbumPhoto.guestName}</strong> ({previewAdminAlbumPhoto.guestEmail})</span>
+                  <span>•</span>
+                  <span>{previewAdminAlbumPhoto.uploadedAt}</span>
+                  {previewAdminAlbumPhoto.sizeBytes && (
+                    <>
+                      <span>•</span>
+                      <span className="font-mono text-emerald-400 font-semibold">{Math.round(previewAdminAlbumPhoto.sizeBytes / 1024)} KB</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewAdminAlbumPhoto.url}
+                  download={`scatto_${previewAdminAlbumPhoto.guestName.replace(/\s+/g, '_')}_${previewAdminAlbumPhoto.id}.jpg`}
+                  className="px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Scarica File Originale</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL GESTIONE QUOTAZIONE & PROPOSTA DESIDERIO VALERIA                    */}
+      {/* ========================================================================= */}
+      {editingProposalWish && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in"
+          onClick={() => setEditingProposalWish(null)}
+        >
+          <div 
+            className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="p-5 bg-stone-900 text-white flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-xs text-amber-400 font-bold uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Proposta &amp; Quotazione Concierge · AD Marketing</span>
+                </div>
+                <h3 className="text-lg font-serif-luxury font-bold text-white mt-1">
+                  {editingProposalWish.title}
+                </h3>
+                <p className="text-xs text-neutral-300 mt-0.5">
+                  Ospite: <strong>{editingProposalWish.guestName}</strong> ({editingProposalWish.guestEmail || 'Nessuna mail'}) &bull; Matrimonio: <strong>{editingProposalWish.weddingCode}</strong>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingProposalWish(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Corpo Form Modal */}
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+              {/* Richiesta originale ospite */}
+              <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/80 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-neutral-500 block">Richiesta inviata dall'ospite:</span>
+                <p className="text-stone-800 italic leading-relaxed">"{editingProposalWish.description}"</p>
+                <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-500 pt-1">
+                  <span>Data: <strong>{editingProposalWish.preferredDate || 'Flessibile'}</strong></span>
+                  <span>•</span>
+                  <span>Pax: <strong>{editingProposalWish.participantsCount} partecipanti</strong></span>
+                  {editingProposalWish.budgetRange && (
+                    <>
+                      <span>•</span>
+                      <span>Budget: <strong>{editingProposalWish.budgetRange}</strong></span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Input Quotazione */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Quotazione Totale Ufficiale (€) *</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    required
+                    value={proposalCostInput}
+                    onChange={(e) => setProposalCostInput(e.target.value)}
+                    placeholder="Es. 180"
+                    className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl text-sm font-mono font-bold text-emerald-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                  />
+                  <span className="text-[10px] text-neutral-500 mt-0.5 block">Importo totale proposto per {editingProposalWish.participantsCount} pax.</span>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">
+                    Stato del Desiderio
+                  </label>
+                  <select
+                    value={proposalStatusInput}
+                    onChange={(e) => setProposalStatusInput(e.target.value as any)}
+                    className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-semibold text-stone-800 focus:outline-hidden"
+                  >
+                    <option value="RECEIVED">⏳ In Attesa (Valutazione in corso)</option>
+                    <option value="PROPOSAL_READY">💡 Proposta Pronta (Quotazione inviabile all'ospite)</option>
+                    <option value="CONFIRMED">🟢 Confermato &amp; Saldato</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Note e Dettagli Organizzativi da Valeria */}
+              <div>
+                <label className="block font-bold text-stone-800 mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Note e Dettagli Organizzativi di Valeria per l'Ospite</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={proposalNotesInput}
+                  onChange={(e) => setProposalNotesInput(e.target.value)}
+                  placeholder="Es. Proposta confermata con il nostro partner di Alberobello. Include caschi, assicurazione completa e consegna della Vespa direttamente in masseria."
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl text-xs text-stone-800 leading-relaxed focus:outline-hidden focus:ring-1 focus:ring-neutral-900"
+                />
+              </div>
+
+              {/* Box Coordinate Bancarie che verranno inviate */}
+              <div className="p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold text-stone-800 border-b border-neutral-200 pb-1.5">
+                  <span className="flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Coordinate di Pagamento Incluse nel Messaggio</span>
+                  </span>
+                  <span className="text-[10px] text-neutral-500 font-normal">Dati Ufficiali AD Marketing</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                  <div>
+                    <span className="text-neutral-500 block">IBAN:</span>
+                    <span className="font-mono font-bold text-stone-900">{adminSettings?.defaultIban || 'IT98 X 03002 03280 000000123456'}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 block">Intestatario:</span>
+                    <span className="font-bold text-stone-900 truncate block">{adminSettings?.bankAccountHolder || adminSettings?.agencyLegalName || 'AD Marketing S.r.l.s.'}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 block">Banca:</span>
+                    <span className="text-stone-800">{adminSettings?.bankName || 'UniCredit'}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 block">Causale Raccomandata:</span>
+                    <span className="font-mono font-bold text-amber-900">Saldo Desiderio {editingProposalWish.weddingCode} - {editingProposalWish.guestName}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Anteprima Testo che verrà inviato */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                  Anteprima Messaggio WhatsApp / Email:
+                </span>
+                <div className="p-3 bg-stone-900 text-stone-200 font-mono text-[11px] rounded-xl whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
+                  {generateWishWhatsAppMessage({
+                    ...editingProposalWish,
+                    proposedCost: Number(proposalCostInput) || 0,
+                    agencyNotes: proposalNotesInput
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Azioni Modal */}
+            <div className="p-4 bg-stone-50 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setEditingProposalWish(null)}
+                className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Annulla
+              </button>
+
+              <div className="flex items-center gap-2 flex-wrap ml-auto">
+                {/* Salva & Copia */}
+                <button
+                  type="button"
+                  onClick={() => handleSaveProposalModal('copy')}
+                  className="px-3.5 py-2 bg-white hover:bg-stone-100 text-stone-800 font-bold rounded-xl border border-stone-300 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Salva quotazione e copia il messaggio formattato negli appunti"
+                >
+                  <Copy className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Salva &amp; Copia Testo</span>
+                </button>
+
+                {/* Salva & WhatsApp */}
+                <button
+                  type="button"
+                  onClick={() => handleSaveProposalModal('whatsapp')}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Salva quotazione e apri WhatsApp con il messaggio precompilato"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Salva &amp; Invia su WhatsApp</span>
+                </button>
+
+                {/* Salva & Email */}
+                <button
+                  type="button"
+                  onClick={() => handleSaveProposalModal('email')}
+                  className="px-3.5 py-2 bg-amber-700 hover:bg-amber-800 text-white font-bold rounded-xl shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+                  title="Salva quotazione e invia email ufficiale con IBAN e coordinate"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Salva &amp; Invia Email</span>
+                </button>
+
+                {/* Solo Salva */}
+                <button
+                  type="button"
+                  onClick={() => handleSaveProposalModal()}
+                  className="px-4 py-2 bg-stone-900 hover:bg-black text-white font-bold rounded-xl shadow-2xs transition-all cursor-pointer"
+                >
+                  Salva Modifiche
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL ANTEPRIMA EMAIL & FALLBACK INVIO                                    */}
+      {/* ========================================================================= */}
+      {emailFallbackModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in"
+          onClick={() => setEmailFallbackModal(null)}
+        >
+          <div 
+            className="max-w-xl w-full bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 bg-stone-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-amber-400" />
+                <h3 className="font-bold text-sm">Invio Email Ufficiale Proposta &amp; IBAN</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEmailFallbackModal(null)}
+                className="text-stone-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3.5 text-xs">
+              <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-1">
+                <div><strong>A:</strong> <span className="font-mono text-neutral-800">{emailFallbackModal.to}</span></div>
+                <div><strong>Oggetto:</strong> <span className="text-neutral-800">{emailFallbackModal.subject}</span></div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-800 mb-1">
+                  Corpo del Messaggio (Include Quotazione e Coordinate Bancarie):
+                </label>
+                <textarea
+                  readOnly
+                  rows={8}
+                  value={emailFallbackModal.bodyText}
+                  className="w-full p-3 bg-stone-50 border border-neutral-300 rounded-xl font-mono text-[11px] leading-relaxed select-all"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 text-[11px]">
+                ✓ Il testo è già stato copiato nei tuoi appunti! Se il tuo browser non ha aperto automaticamente il client di posta, puoi incollarlo direttamente nella tua mail.
+              </div>
+            </div>
+
+            <div className="p-4 bg-stone-50 border-t border-neutral-200 flex items-center justify-between gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setEmailFallbackModal(null)}
+                className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 font-semibold rounded-xl cursor-pointer"
+              >
+                Chiudi
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(emailFallbackModal.bodyText);
+                    setAlertActionToast('✓ Testo email ricopiato negli appunti!');
+                    setTimeout(() => setAlertActionToast(null), 3000);
+                  }}
+                  className="px-3.5 py-2 bg-white hover:bg-stone-100 text-stone-800 font-bold rounded-xl border border-stone-300 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Copy className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Copia Testo</span>
+                </button>
+
+                <a
+                  href={`mailto:${encodeURIComponent(emailFallbackModal.to)}?subject=${encodeURIComponent(emailFallbackModal.subject)}&body=${encodeURIComponent(emailFallbackModal.bodyText)}`}
+                  className="px-4 py-2 bg-stone-900 hover:bg-black text-white font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Apri Client di Posta</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>

@@ -396,7 +396,7 @@ export default function App() {
   // Vista Attiva (Home, Ospite, Sposi, Admin, Fornitore, Dashboard)
   const [currentView, setCurrentView] = useState<'home' | 'guest' | 'couple' | 'admin' | 'supplier' | 'dashboard'>('home');
   const [isLateralMenuOpen, setIsLateralMenuOpen] = useState(false);
-  const [guestActiveTab, setGuestActiveTab] = useState<'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments'>('couple-info');
+  const [guestActiveTab, setGuestActiveTab] = useState<'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments' | 'album'>('couple-info');
   const [coupleActiveTab, setCoupleActiveTab] = useState<'details' | 'photos' | 'secondary' | 'gift-services' | 'communication' | 'guests' | 'chat'>('details');
 
   // Modali Informative Legali Footer (AD Marketing Palagianello TA)
@@ -1558,8 +1558,8 @@ export default function App() {
       const guestItems: MenuItem[] = [
         {
           id: 'couple-info',
-          label: lang === 'it' ? 'Dagli Sposi' : 'The Wedding',
-          subtitle: lang === 'it' ? 'Dettagli cerimonia, ricevimento e countdown' : 'Ceremony, reception & countdown',
+          label: lang === 'it' ? 'Servizi e informazioni' : 'Services & Information',
+          subtitle: lang === 'it' ? 'Dettagli cerimonia, ricevimento e informazioni utili' : 'Ceremony, reception & useful info',
           icon: <Heart className="w-5 h-5" />
         },
         {
@@ -1568,6 +1568,13 @@ export default function App() {
           subtitle: lang === 'it' ? 'Conferma presenza, intolleranze e accompagnatori' : 'Attendance, dietary & companions',
           icon: <CheckCircle2 className="w-5 h-5" />,
           badge: currentGuest?.name ? 'Personale' : undefined
+        },
+        {
+          id: 'album',
+          label: lang === 'it' ? 'Album del Matrimonio' : 'Wedding Album',
+          subtitle: lang === 'it' ? 'Scatta dal vivo o carica fino a 30 foto delle nozze' : 'Snap live or upload up to 30 wedding photos',
+          icon: <Camera className="w-5 h-5" />,
+          badge: 'Nuovo'
         },
         {
           id: 'hotels',
@@ -1641,8 +1648,8 @@ export default function App() {
         },
         {
           id: 'photos',
-          label: 'Galleria Fotografica',
-          subtitle: 'Foto di copertina e album dei momenti speciali',
+          label: 'Album del Matrimonio',
+          subtitle: 'Foto ufficiali e scatti live degli invitati aggiornati in tempo reale',
           icon: <Camera className="w-5 h-5" />
         },
         {
@@ -2005,6 +2012,7 @@ export default function App() {
             onSendWish={handleSendWish}
             onConfirmBookingToSuppliers={handleConfirmBookingToSuppliers}
             onSaveGuestChoices={handleSaveGuestChoices}
+            onUpdateWedding={handleUpdateSingleWedding}
             adminSettings={adminSettings}
             wishRequests={wishRequests}
             lang={lang}

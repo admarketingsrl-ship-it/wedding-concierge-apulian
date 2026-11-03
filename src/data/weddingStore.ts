@@ -345,6 +345,18 @@ export interface GalleryPhoto {
   uploadedAt: string;
 }
 
+// Fotografie caricate dagli invitati nell'Album Nozze (fino a 30 per ospite, compresse con tracciamento memoria)
+export interface WeddingAlbumPhoto {
+  id: string;
+  url: string; // Immagine compressa (base64 o URL)
+  caption?: string;
+  guestEmail: string;
+  guestName: string;
+  uploadedAt: string; // Data formattata (es. '04-11-2026 15:30')
+  sizeBytes?: number; // Dimensione in byte per il calcolo memoria di Valeria
+  takenWithCamera?: boolean; // Scattata direttamente tramite fotocamera smartphone
+}
+
 export interface SecondaryInfoSection {
   id: string;
   title: string;
@@ -396,6 +408,7 @@ export interface WeddingData {
   story?: string;
   schedule?: ScheduleEvent[];
   galleryPhotos?: GalleryPhoto[];
+  weddingAlbumPhotos?: WeddingAlbumPhoto[];
   secondaryInfo?: SecondaryInfoSection[];
   broadcastAnnouncements?: BroadcastAnnouncement[];
   hotels: HotelItem[];
@@ -834,7 +847,39 @@ export const MONTECCHI_CAPULETI_WEDDING: WeddingData = {
   extraServices: [],
   guests: [],
   giftRequests: [],
-  notifications: []
+  notifications: [],
+  weddingAlbumPhotos: [
+    {
+      id: 'album-photo-demo-1',
+      url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1000&q=80',
+      caption: 'Brindisi all\'arrivo nel cortile storico! 🥂',
+      guestEmail: 'eleanor.vance@gmail.com',
+      guestName: 'Eleanor Vance',
+      uploadedAt: '20-06-2026 18:40',
+      sizeBytes: 114500, // ~112 KB
+      takenWithCamera: true
+    },
+    {
+      id: 'album-photo-demo-2',
+      url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=80',
+      caption: 'La sposa è meravigliosa! Momento dell\'ingresso',
+      guestEmail: 'eleanor.vance@gmail.com',
+      guestName: 'Eleanor Vance',
+      uploadedAt: '20-06-2026 19:15',
+      sizeBytes: 98400, // ~96 KB
+      takenWithCamera: true
+    },
+    {
+      id: 'album-photo-demo-3',
+      url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1000&q=80',
+      caption: 'Tavolata magica sotto le stelle di Verona',
+      guestEmail: 'william.sterling@barclays.co.uk',
+      guestName: 'William Sterling',
+      uploadedAt: '20-06-2026 21:30',
+      sizeBytes: 105200, // ~103 KB
+      takenWithCamera: false
+    }
+  ]
 };
 
 export const INITIAL_WEDDINGS: WeddingData[] = [MONTECCHI_CAPULETI_WEDDING];

@@ -42,7 +42,8 @@ import {
   Download,
   Filter,
   ShieldAlert,
-  ChefHat
+  ChefHat,
+  Smartphone
 } from 'lucide-react';
 import HamburgerMenu from './HamburgerMenu';
 import { 
@@ -52,7 +53,8 @@ import {
   SecondaryInfoSection, 
   BroadcastAnnouncement,
   AdminSettings,
-  ChatMessage
+  ChatMessage,
+  WeddingAlbumPhoto
 } from '../data/weddingStore';
 import heroBanner from '../assets/images/wedding_concierge_hero_1791309110090.jpg';
 import hotelSuiteImg from '../assets/images/wedding_hotel_suite_1791309120679.jpg';
@@ -100,13 +102,45 @@ export default function CouplePortal({
 
   const navItems = [
     { id: 'details', label: 'Dettagli Nozze', icon: <Heart className="w-5 h-5" /> },
-    { id: 'photos', label: 'Galleria Foto', icon: <Camera className="w-5 h-5" /> },
+    { id: 'photos', label: 'Album del Matrimonio', icon: <Camera className="w-5 h-5" /> },
     { id: 'secondary', label: 'Guida Utile', icon: <Info className="w-5 h-5" /> },
     { id: 'gift-services', label: 'Regala Servizi', icon: <Gift className="w-5 h-5" /> },
     { id: 'communication', label: 'Invito WhatsApp', icon: <MessageCircle className="w-5 h-5" /> },
     { id: 'guests', label: 'Riepilogo Ospiti', icon: <Users className="w-5 h-5" /> },
     { id: 'chat', label: 'Chat Ospiti', icon: <MessageCircle className="w-5 h-5" /> },
   ];
+
+  // Stato Album Condiviso degli Invitati visto dalla Sposa
+  const [photoSectionTab, setPhotoSectionTab] = useState<'guest-album' | 'official-photos'>('guest-album');
+  const [guestPhotoFilter, setGuestPhotoFilter] = useState<string>('all');
+  const [previewGuestAlbumPhoto, setPreviewGuestAlbumPhoto] = useState<WeddingAlbumPhoto | null>(null);
+
+  const guestAlbumPhotos: WeddingAlbumPhoto[] = weddingData.weddingAlbumPhotos || [];
+  const uniqueGuestsWithPhotos = Array.from(
+    new Set(guestAlbumPhotos.map(p => p.guestName || p.guestEmail).filter(Boolean))
+  );
+
+  const filteredGuestAlbumPhotos = guestPhotoFilter === 'all'
+    ? guestAlbumPhotos
+    : guestAlbumPhotos.filter(p => (p.guestName === guestPhotoFilter || p.guestEmail === guestPhotoFilter));
+
+  const handleDeleteGuestAlbumPhoto = (photoId: string) => {
+    if (!confirm('Vuoi rimuovere questo scatto dall\'album condiviso del matrimonio?')) return;
+    const updated: WeddingData = {
+      ...weddingData,
+      weddingAlbumPhotos: (weddingData.weddingAlbumPhotos || []).filter(p => p.id !== photoId)
+    };
+    onUpdateWedding(updated);
+  };
+
+  const handleDownloadGuestAlbumPhoto = (photo: WeddingAlbumPhoto) => {
+    const a = document.createElement('a');
+    a.href = photo.url;
+    a.download = `matrimonio_${weddingData.weddingCode}_${photo.guestName.replace(/\s+/g, '_')}_${photo.id}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   const [selectedChatGuestEmail, setSelectedChatGuestEmail] = useState<string>('');
   const [coupleReplyText, setCoupleReplyText] = useState('');
@@ -1815,31 +1849,235 @@ ${coupleNames} ❤️`;
       )}
 
       {/* ========================================================================= */}
-      {/* 2. CARICA FOTO & GESTIONE GALLERIA NOZZE                                  */}
+      {/* 2. ALBUM DEL MATRIMONIO & FOTO INVITATI AGGIORNATE IN TEMPO REALE         */}
       {/* ========================================================================= */}
       {activeTab === 'photos' && (
-        <div className="space-y-8">
-          {/* Foto Copertina / Banner Principale */}
-          <div className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="border-b border-neutral-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-serif-luxury font-bold text-stone-800 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-rose-500" />
-                  <span>Foto Copertina / Banner del Matrimonio</span>
-                </h3>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                  Questa immagine accoglierà i vostri ospiti all'apertura del portale del vostro matrimonio.
-                </p>
-              </div>
+        <div className="space-y-8 animate-fade-in">
+          {/* Selettore Vista Album: Scatti degli Invitati vs Foto Ufficiali Sposi */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-stone-100 rounded-2xl border border-stone-200">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleSaveWeddingChanges({ bannerImage }, 'Foto copertina salvata con successo!')}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-750 text-white text-xs font-semibold hover:bg-stone-700 transition-colors shadow-2xs cursor-pointer shrink-0"
+                onClick={() => setPhotoSectionTab('guest-album')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  photoSectionTab === 'guest-album'
+                    ? 'bg-rose-700 text-white shadow-sm'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200/70'
+                }`}
               >
-                <Save className="w-3.5 h-3.5 text-stone-400" />
-                <span>Salva Copertina</span>
+                <Camera className="w-4 h-4" />
+                <span>Scatti Live degli Invitati (Album Condiviso)</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${photoSectionTab === 'guest-album' ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'}`}>
+                  {guestAlbumPhotos.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPhotoSectionTab('official-photos')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  photoSectionTab === 'official-photos'
+                    ? 'bg-stone-850 text-white shadow-sm'
+                    : 'text-stone-700 hover:text-stone-900 hover:bg-stone-200/70'
+                }`}
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span>Foto Ufficiali & Copertina</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${photoSectionTab === 'official-photos' ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'}`}>
+                  {galleryPhotos.length}
+                </span>
               </button>
             </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-stone-600 font-medium px-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Sincronizzazione in tempo reale con gli ospiti</span>
+            </div>
+          </div>
+
+          {/* VISTA 1: SCATTI LIVE DEGLI INVITATI */}
+          {photoSectionTab === 'guest-album' && (
+            <div className="space-y-6">
+              {/* Riepilogo Metriche Album Invitati */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-2xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-neutral-500">Foto Caricate dagli Invitati</div>
+                    <div className="text-lg font-bold text-stone-900 font-mono">
+                      {guestAlbumPhotos.length} <span className="text-xs font-normal text-neutral-400">scatti</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-2xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-neutral-500">Ospiti Partecipanti all'Album</div>
+                    <div className="text-lg font-bold text-stone-900 font-mono">
+                      {uniqueGuestsWithPhotos.length} <span className="text-xs font-normal text-neutral-400">invitati</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-2xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-neutral-500">Ultimo Scatto Condiviso</div>
+                    <div className="text-xs font-bold text-stone-900 font-mono truncate max-w-[170px]">
+                      {guestAlbumPhotos[guestAlbumPhotos.length - 1]?.uploadedAt || 'Nessuno ancora'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filtro per Invitato e Azioni */}
+              <div className="p-4 bg-white border border-neutral-200 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-stone-500" />
+                  <span className="text-xs font-semibold text-stone-700">Filtra per Invitato:</span>
+                  <select
+                    value={guestPhotoFilter}
+                    onChange={(e) => setGuestPhotoFilter(e.target.value)}
+                    className="p-1.5 text-xs bg-stone-50 border border-neutral-300 rounded-lg text-stone-800 font-medium cursor-pointer"
+                  >
+                    <option value="all">Tutti gli Invitati ({guestAlbumPhotos.length} foto)</option>
+                    {uniqueGuestsWithPhotos.map(name => {
+                      const count = guestAlbumPhotos.filter(p => (p.guestName === name || p.guestEmail === name)).length;
+                      return (
+                        <option key={name} value={name}>
+                          {name} ({count} {count === 1 ? 'foto' : 'foto'})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="text-[11px] text-neutral-500">
+                  Visualizzati: <strong>{filteredGuestAlbumPhotos.length}</strong> su {guestAlbumPhotos.length} scatti
+                </div>
+              </div>
+
+              {/* Griglia Scatti Invitati */}
+              {filteredGuestAlbumPhotos.length === 0 ? (
+                <div className="py-14 text-center space-y-3 bg-white rounded-2xl border border-dashed border-stone-300">
+                  <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+                    <Camera className="w-6 h-6" />
+                  </div>
+                  <div className="text-sm font-bold text-stone-800">
+                    Nessuno scatto presente per questo filtro
+                  </div>
+                  <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                    Man mano che gli invitati scatteranno fotografie durante il matrimonio, compariranno immediatamente qui in tempo reale!
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                  {filteredGuestAlbumPhotos.map((photo) => (
+                    <div 
+                      key={photo.id}
+                      className="group relative rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-2xs hover:shadow-md transition-all flex flex-col"
+                    >
+                      {/* Box Immagine - Formato Originale Integro Mantenuto */}
+                      <div 
+                        className="h-64 sm:h-72 w-full bg-stone-950 overflow-hidden cursor-pointer relative p-1.5 flex items-center justify-center"
+                        onClick={() => setPreviewGuestAlbumPhoto(photo)}
+                      >
+                        <img 
+                          src={photo.url} 
+                          alt={photo.caption || 'Foto invitato'} 
+                          className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-xs group-hover:scale-105 transition-transform duration-300"
+                          referrerPolicy="no-referrer"
+                        />
+
+                        {photo.takenWithCamera && (
+                          <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-rose-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-md backdrop-blur-xs">
+                            <Smartphone className="w-3 h-3" />
+                            <span>Live Cam</span>
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                          <span className="px-3 py-1.5 rounded-full bg-white/95 text-stone-900 text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                            <Eye className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Ingrandisci Formato Originale</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Info & Azioni Moderazione Sposi */}
+                      <div className="p-3.5 bg-white flex flex-col justify-between flex-1 border-t border-neutral-100 space-y-2">
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] text-neutral-400">
+                            <span className="font-bold text-stone-800 truncate max-w-[170px]">
+                              {photo.guestName}
+                            </span>
+                            <span className="font-mono text-[10px]">
+                              {photo.uploadedAt}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-700 font-medium mt-1 line-clamp-2">
+                            {photo.caption || 'Scatto del matrimonio'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadGuestAlbumPhoto(photo)}
+                            className="text-stone-600 hover:text-stone-900 flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Scarica</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteGuestAlbumPhoto(photo.id)}
+                            className="p-1 text-neutral-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Elimina scatto inappropriato"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* VISTA 2: FOTO UFFICIALI & COPERTINA SPOSI */}
+          {photoSectionTab === 'official-photos' && (
+            <div className="space-y-8">
+              {/* Foto Copertina / Banner Principale */}
+              <div className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="border-b border-neutral-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-serif-luxury font-bold text-stone-800 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-rose-500" />
+                      <span>Foto Copertina / Banner del Matrimonio</span>
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      Questa immagine accoglierà i vostri ospiti all'apertura del portale del vostro matrimonio.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveWeddingChanges({ bannerImage }, 'Foto copertina salvata con successo!')}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-750 text-white text-xs font-semibold hover:bg-stone-700 transition-colors shadow-2xs cursor-pointer shrink-0"
+                  >
+                    <Save className="w-3.5 h-3.5 text-stone-400" />
+                    <span>Salva Copertina</span>
+                  </button>
+                </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
               <div className="md:col-span-5 aspect-video rounded-xl overflow-hidden border border-neutral-200 shadow-xs relative">
@@ -2076,6 +2314,8 @@ ${coupleNames} ❤️`;
               <span>Salva Tutte le Foto</span>
             </button>
           </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -3917,6 +4157,72 @@ ${coupleNames} ❤️`;
             <div className="p-4 bg-stone-750 text-white flex items-center justify-between text-xs border-t border-white/10">
               <span className="font-semibold text-sm">{previewPhoto.caption || 'Foto del matrimonio'}</span>
               <span className="text-neutral-400 font-mono text-[11px]">Caricata: {previewPhoto.uploadedAt}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LIGHTBOX FOTO OSPITE (ALBUM CONDIVISO) */}
+      {previewGuestAlbumPhoto && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xs p-4 animate-fade-in"
+          onClick={() => setPreviewGuestAlbumPhoto(null)}
+        >
+          <div 
+            className="max-w-4xl w-full bg-stone-900 rounded-2xl overflow-hidden shadow-2xl border border-white/20 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewGuestAlbumPhoto(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/80 text-white flex items-center justify-center hover:bg-rose-600 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="max-h-[78vh] min-h-[300px] bg-black p-3 flex items-center justify-center overflow-hidden">
+              <img 
+                src={previewGuestAlbumPhoto.url} 
+                alt={previewGuestAlbumPhoto.caption || 'Scatto invitato'} 
+                className="max-w-full max-h-[76vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            <div className="p-4 sm:p-5 bg-stone-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t border-white/10">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-stone-100">
+                    {previewGuestAlbumPhoto.caption || 'Scatto del matrimonio'}
+                  </span>
+                  {previewGuestAlbumPhoto.takenWithCamera && (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold">
+                      Live Cam
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-neutral-400 mt-1 flex items-center gap-2">
+                  <span>Scattata da: <strong className="text-white">{previewGuestAlbumPhoto.guestName}</strong></span>
+                  <span>•</span>
+                  <span>{previewGuestAlbumPhoto.uploadedAt}</span>
+                  {previewGuestAlbumPhoto.sizeBytes && (
+                    <>
+                      <span>•</span>
+                      <span className="font-mono text-neutral-400">{Math.round(previewGuestAlbumPhoto.sizeBytes / 1024)} KB</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadGuestAlbumPhoto(previewGuestAlbumPhoto)}
+                  className="px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Scarica Foto</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

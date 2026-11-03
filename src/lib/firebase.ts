@@ -174,6 +174,11 @@ export function ensureWeddingUnderFirestoreLimit(wedding: WeddingData): WeddingD
     }
   }
 
+  // Se i soli album superano la soglia di sicurezza estrema, manteniamo fino a 50 scatti più recenti
+  if (currentSize > MAX_SAFE_CHARS && Array.isArray(docCopy.weddingAlbumPhotos) && docCopy.weddingAlbumPhotos.length > 50) {
+    docCopy.weddingAlbumPhotos = docCopy.weddingAlbumPhotos.slice(0, 50);
+  }
+
   return docCopy;
 }
 
