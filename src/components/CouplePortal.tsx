@@ -545,6 +545,12 @@ export default function CouplePortal({
   const [guestViewMode, setGuestViewMode] = useState<'individuals' | 'families'>('individuals');
   const [dietFilter, setDietFilter] = useState<'ALL' | 'SPECIAL' | 'CELIAC' | 'LACTOSE' | 'VEG' | 'CHILDREN'>('ALL');
   const [showRestaurantPrintModal, setShowRestaurantPrintModal] = useState(false);
+  const [printTableMode, setPrintTableMode] = useState<'ALL_13_COLUMNS' | 'RESTAURANT_CORE'>('ALL_13_COLUMNS');
+  const [googleSheetsResult, setGoogleSheetsResult] = useState<{
+    spreadsheetUrl: string;
+    landscapePdfUrl: string;
+    title: string;
+  } | null>(null);
 
   // Lista filtrata singoli coperti
   const filteredIndividualGuests = useMemo(() => {
@@ -582,11 +588,11 @@ export default function CouplePortal({
 
   const [isExportingSheets, setIsExportingSheets] = useState(false);
 
-  // 1. Esportazione Google Sheets con Roster Completo Singoli Coperti e Note Ristorante
+  // 1. Esportazione Google Sheets con Roster Completo Singoli Coperti e Note Ristorante (Orizzontale & Colonne Adattate)
   const handleExportToGoogleSheets = async () => {
     try {
       setIsExportingSheets(true);
-      triggerToast('Autenticazione Google e creazione Foglio in corso...');
+      triggerToast('Autenticazione Google e creazione Foglio Orizzontale in corso...');
 
       const provider = new GoogleAuthProvider();
       provider.addScope('https://www.googleapis.com/auth/spreadsheets');
@@ -622,7 +628,7 @@ export default function CouplePortal({
       const spreadsheetUrl = sheetData.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 
       const rows = [
-        ['📋 SCHEDA BANQUETTO & COPERTI RISTORANTE', `Matrimonio: ${coupleNames}`, `Data: ${weddingDate}`, `Location: ${venue} (${city})`],
+        ['📋 SCHEDA BANQUETTO & COPERTI RISTORANTE (FORMATO ORIZZONTALE ADATTATO)', `Matrimonio: ${coupleNames}`, `Data: ${weddingDate}`, `Location: ${venue} (${city})`],
         [
           `Totale Coperti: ${cateringStats.totalCovers}`,
           `Adulti: ${cateringStats.adults}`,
@@ -683,7 +689,100 @@ export default function CouplePortal({
         throw new Error('Errore durante la scrittura dei dati nel foglio.');
       }
 
-      triggerToast('Foglio Google con tutti i coperti creato e popolato con successo!');
+      // 3. Formattazione avanzata Google Sheets: blocca righe superiori, adatta tutte le 13 colonne alla larghezza del testo e imposta a capo automatico
+      try {
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requests: [
+              // Blocca le prime 4 righe
+              {
+                updateSheetProperties: {
+                  properties: {
+                    sheetId: 0,
+                    gridProperties: {
+                      frozenRowCount: 4
+                    }
+                  },
+                  fields: 'gridProperties.frozenRowCount'
+                }
+              },
+              // Auto-adatta tutte le 13 colonne alla larghezza esatta del contenuto per entrare in orizzontale
+              {
+                autoResizeDimensions: {
+                  dimensions: {
+                    sheetId: 0,
+                    dimension: 'COLUMNS',
+                    startIndex: 0,
+                    endIndex: 13
+                  }
+                }
+              },
+              // Stile grafico riga intestazioni colonne (riga 4, indice 3)
+              {
+                repeatCell: {
+                  range: {
+                    sheetId: 0,
+                    startRowIndex: 3,
+                    endRowIndex: 4,
+                    startColumnIndex: 0,
+                    endColumnIndex: 13
+                  },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 0.16, green: 0.14, blue: 0.13 },
+                      textFormat: {
+                        bold: true,
+                        foregroundColor: { red: 1, green: 1, blue: 1 },
+                        fontSize: 10
+                      },
+                      horizontalAlignment: 'CENTER',
+                      wrapStrategy: 'WRAP'
+                    }
+                  },
+                  fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,wrapStrategy)'
+                }
+              },
+              // Wrap automatico per le note intolleranze e allergie
+              {
+                repeatCell: {
+                  range: {
+                    sheetId: 0,
+                    startRowIndex: 4,
+                    endRowIndex: rows.length,
+                    startColumnIndex: 6,
+                    endColumnIndex: 7
+                  },
+                  cell: {
+                    userEnteredFormat: {
+                      wrapStrategy: 'WRAP',
+                      textFormat: { bold: true, foregroundColor: { red: 0.75, green: 0.1, blue: 0.1 } }
+                    }
+                  },
+                  fields: 'userEnteredFormat(wrapStrategy,textFormat)'
+                }
+              }
+            ]
+          })
+        });
+      } catch (styleErr) {
+        console.warn('Avviso batchUpdate formattazione colonne Google Sheets:', styleErr);
+      }
+
+      // Link diretto all'esportazione PDF in formato orizzontale A4 (tutte le colonne adattate alla larghezza)
+      const landscapePdfUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=pdf&portrait=false&fitw=true&gridlines=true&size=a4`;
+
+      setGoogleSheetsResult({
+        spreadsheetUrl,
+        landscapePdfUrl,
+        title: `Elenco Coperti & Note Ristorante - ${coupleNames}`
+      });
+
+      triggerToast('✓ Foglio Google orizzontale creato: tutte le colonne sono state adattate!');
       window.open(spreadsheetUrl, '_blank');
     } catch (err: any) {
       console.error('Errore export Google Sheets:', err);
@@ -2828,16 +2927,16 @@ ${coupleNames} ❤️`;
 
               {/* Pulsanti di esportazione multi-formato */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
-                {/* 1. Google Fogli */}
+                {/* 1. Google Fogli (Orizzontale Auto-adattato) */}
                 <button
                   type="button"
                   onClick={handleExportToGoogleSheets}
                   disabled={isExportingSheets}
                   className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                  title="Crea e popola direttamente un foglio Google Fogli online"
+                  title="Crea un foglio Google Fogli in formato orizzontale con tutte le 13 colonne auto-adattate"
                 >
                   <ExternalLink className="w-4 h-4 text-emerald-200 shrink-0" />
-                  <span>{isExportingSheets ? 'Creazione in corso...' : 'Google Fogli'}</span>
+                  <span>{isExportingSheets ? 'Creazione orizzontale...' : 'Google Fogli (Orizzontale)'}</span>
                 </button>
 
                 {/* 2. Excel CSV */}
@@ -2851,15 +2950,15 @@ ${coupleNames} ❤️`;
                   <span>Scarica Excel (CSV)</span>
                 </button>
 
-                {/* 3. Stampa Scheda Ristorante / PDF */}
+                {/* 3. Stampa Scheda Ristorante / PDF (Orizzontale) */}
                 <button
                   type="button"
                   onClick={handlePrintRestaurantSheet}
                   className="px-3.5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-all"
-                  title="Apri e stampa la scheda da consegnare a mano al Maitre e allo Chef"
+                  title="Apri e stampa la scheda in formato orizzontale (Landscape A4) con tutte le colonne adattate su un unico foglio"
                 >
                   <Printer className="w-4 h-4 text-rose-200 shrink-0" />
-                  <span>Stampa Scheda / PDF</span>
+                  <span>Stampa Orizzontale / PDF</span>
                 </button>
 
                 {/* 4. Copia per WhatsApp Maitre */}
@@ -2884,6 +2983,39 @@ ${coupleNames} ❤️`;
                   <span>Esporta JSON</span>
                 </button>
               </div>
+
+              {/* Box Notifica Foglio Google Orizzontale Creato con link diretto al PDF Orizzontale */}
+              {googleSheetsResult && (
+                <div className="p-3.5 bg-emerald-950/70 border border-emerald-500/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in">
+                  <div className="flex items-center gap-2 text-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <strong>Foglio Google Orizzontale attivo:</strong> Tutte le 13 colonne sono state auto-adattate per contenere tutti i dati dei coperti.
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={googleSheetsResult.spreadsheetUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Apri Google Sheet</span>
+                    </a>
+                    <a
+                      href={googleSheetsResult.landscapePdfUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-emerald-100 font-bold text-[11px] flex items-center gap-1.5 border border-white/20 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Scarica PDF Orizzontale (A4)</span>
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* SELETTORE VISTA E FILTRI DIETETICI */}
@@ -3355,18 +3487,21 @@ ${coupleNames} ❤️`;
           {/* ========================================================================= */}
           {showRestaurantPrintModal && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-              <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-neutral-200 p-6 sm:p-8 space-y-6">
+              <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-neutral-200 p-6 sm:p-8 space-y-5">
                 
                 {/* Header Modale */}
                 <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
                   <div className="flex items-center gap-2.5">
                     <ChefHat className="w-6 h-6 text-rose-700" />
                     <div>
-                      <h3 className="text-lg font-serif-luxury font-bold text-stone-900">
-                        Scheda Banchetto &amp; Coperti Ristorante
+                      <h3 className="text-lg font-serif-luxury font-bold text-stone-900 flex items-center gap-2">
+                        <span>Scheda Banchetto &amp; Coperti Ristorante</span>
+                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                          Orizzontale (Landscape)
+                        </span>
                       </h3>
                       <p className="text-xs text-neutral-500">
-                        Anteprima di stampa ufficiale da consegnare al Maitre e alla Cucina.
+                        Visualizzazione e stampa su foglio orizzontale: tutte le colonne si adattano perfettamente in una singola pagina.
                       </p>
                     </div>
                   </div>
@@ -3379,103 +3514,191 @@ ${coupleNames} ❤️`;
                   </button>
                 </div>
 
+                {/* Banner di controllo Orientamento & Colonne (Nascosto in Stampa) */}
+                <div className="no-print p-3.5 bg-amber-50/90 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-200/70 text-amber-950 font-bold text-[11px] shrink-0">
+                      📄 Layout A4 Orizzontale
+                    </span>
+                    <p className="text-[11px] text-amber-900 leading-tight">
+                      La stampa e il PDF sono già impostati in <strong>modalità orizzontale (landscape)</strong>. Le colonne sono dimensionate automaticamente per non fuoriuscire dal foglio.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex rounded-xl bg-amber-100 p-1 border border-amber-300 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPrintTableMode('ALL_13_COLUMNS')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        printTableMode === 'ALL_13_COLUMNS'
+                          ? 'bg-stone-900 text-white shadow-xs'
+                          : 'text-stone-700 hover:bg-white/50'
+                      }`}
+                    >
+                      Tutte le Colonne (13)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrintTableMode('RESTAURANT_CORE')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        printTableMode === 'RESTAURANT_CORE'
+                          ? 'bg-stone-900 text-white shadow-xs'
+                          : 'text-stone-700 hover:bg-white/50'
+                      }`}
+                    >
+                      Solo Cucina (6)
+                    </button>
+                  </div>
+                </div>
+
                 {/* Scheda Banqueting Stampabile */}
-                <div id="printable-catering-sheet" className="p-6 bg-stone-50/50 rounded-2xl border border-neutral-200 space-y-5">
-                  <div className="text-center border-b border-stone-200 pb-4">
-                    <div className="text-xs uppercase tracking-widest font-bold text-stone-500">Banchetto Nuziale</div>
-                    <h2 className="text-2xl font-serif-luxury font-bold text-stone-900 mt-1">{coupleNames}</h2>
+                <div id="printable-catering-sheet" className="p-6 bg-stone-50/50 rounded-2xl border border-neutral-200 space-y-4">
+                  <div className="text-center border-b border-stone-200 pb-3">
+                    <div className="text-[11px] uppercase tracking-widest font-bold text-stone-500">Banchetto Nuziale &bull; Scheda Ufficiale Coperti (Formato Orizzontale)</div>
+                    <h2 className="text-2xl font-serif-luxury font-bold text-stone-900 mt-0.5">{coupleNames}</h2>
                     <div className="text-xs text-stone-600 mt-1 flex items-center justify-center gap-4 flex-wrap">
                       <span>Data: <strong>{new Date(weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</strong></span>
                       <span>•</span>
                       <span>Location: <strong>{venue} ({city})</strong></span>
                       <span>•</span>
-                      <span>Codice: <strong>{weddingData.weddingCode}</strong></span>
+                      <span>Codice Matrimonio: <strong>{weddingData.weddingCode}</strong></span>
+                      <span>•</span>
+                      <span>Totale Coperti: <strong>{cateringStats.totalCovers}</strong></span>
                     </div>
                   </div>
 
                   {/* Summary Bar */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-stone-200 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-white p-3 rounded-xl border border-stone-200 text-center">
                     <div>
-                      <div className="text-2xl font-bold font-serif-luxury text-stone-900">{cateringStats.totalCovers}</div>
-                      <div className="text-[10px] uppercase font-bold text-stone-500">Totale Coperti</div>
+                      <div className="text-xl font-bold font-serif-luxury text-stone-900">{cateringStats.totalCovers}</div>
+                      <div className="text-[9px] uppercase font-bold text-stone-500">Totale Coperti</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold font-serif-luxury text-stone-900">{cateringStats.adults}</div>
-                      <div className="text-[10px] uppercase font-bold text-stone-500">Adulti</div>
+                      <div className="text-xl font-bold font-serif-luxury text-stone-900">{cateringStats.adults}</div>
+                      <div className="text-[9px] uppercase font-bold text-stone-500">Adulti</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold font-serif-luxury text-amber-800">{cateringStats.children}</div>
-                      <div className="text-[10px] uppercase font-bold text-amber-600">Menu Bambini</div>
+                      <div className="text-xl font-bold font-serif-luxury text-amber-800">{cateringStats.children}</div>
+                      <div className="text-[9px] uppercase font-bold text-amber-600">Menu Bambini</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold font-serif-luxury text-rose-800">{cateringStats.withSpecialDiet}</div>
-                      <div className="text-[10px] uppercase font-bold text-rose-600">Diete / Intolleranze</div>
+                      <div className="text-xl font-bold font-serif-luxury text-rose-800">{cateringStats.withSpecialDiet}</div>
+                      <div className="text-[9px] uppercase font-bold text-rose-600">Diete / Intolleranze</div>
                     </div>
                   </div>
 
                   {/* Sezione Evidenza Allergie Gravi / Celiachia */}
-                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-bold text-rose-900 uppercase tracking-wide">
-                      <ShieldAlert className="w-4 h-4 text-rose-700" />
-                      <span>Avvisi Critici per la Cucina (Celiachia &amp; Allergie):</span>
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-rose-900 uppercase tracking-wide text-[11px]">
+                      <ShieldAlert className="w-4 h-4 text-rose-700 shrink-0" />
+                      <span>Avvisi Critici per la Cucina &amp; Pasticceria (Celiachia &amp; Allergie):</span>
                     </div>
-                    <div className="text-xs text-rose-800 space-y-1">
-                      <div>• Celiaci / Senza Glutine: <strong>{cateringStats.celiacs}</strong> (Attenzione a contaminazioni crociate).</div>
-                      <div>• Intolleranti al Lattosio: <strong>{cateringStats.lactoseFree}</strong> (No burro, formaggi, derivati).</div>
-                      <div>• Vegetariani / Vegani: <strong>{cateringStats.veg}</strong>.</div>
-                      <div>• Altre Allergie segnalate: <strong>{cateringStats.allergies}</strong>.</div>
+                    <div className="text-rose-800 text-[11px] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1.5 pt-0.5">
+                      <div>• Celiaci / Senza Glutine: <strong>{cateringStats.celiacs}</strong></div>
+                      <div>• Senza Lattosio: <strong>{cateringStats.lactoseFree}</strong></div>
+                      <div>• Vegetariani / Vegani: <strong>{cateringStats.veg}</strong></div>
+                      <div>• Altre Allergie segnalate: <strong>{cateringStats.allergies}</strong></div>
                     </div>
                   </div>
 
-                  {/* Tabella Stampabile Coperti */}
+                  {/* Tabella Stampabile Coperti Adattata Orizzontale */}
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b-2 border-stone-300 text-stone-800 font-bold bg-stone-100">
-                          <th className="py-2 px-2 w-8">#</th>
-                          <th className="py-2 px-3">Ospite</th>
-                          <th className="py-2 px-3">Nucleo</th>
-                          <th className="py-2 px-2">Fascia</th>
-                          <th className="py-2 px-3">Menu / Dieta</th>
-                          <th className="py-2 px-3">Note Cucina &amp; Intolleranze</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-200">
-                        {allIndividualGuests.map((p, idx) => (
-                          <tr key={p.id} className={p.hasSpecialDiet ? 'bg-rose-50/40 font-medium' : ''}>
-                            <td className="py-2 px-2 text-stone-400">{idx + 1}</td>
-                            <td className="py-2 px-3 font-bold text-stone-900">{p.fullName}</td>
-                            <td className="py-2 px-3 text-stone-700">{p.familyName}</td>
-                            <td className="py-2 px-2 text-stone-700">{p.ageCategory}</td>
-                            <td className="py-2 px-3 text-stone-800">{p.dietary}</td>
-                            <td className="py-2 px-3 text-rose-900 font-semibold">{p.intoleranceNotes || '-'}</td>
+                    {printTableMode === 'ALL_13_COLUMNS' ? (
+                      <table className="w-full text-left text-[10px] border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-stone-300 text-stone-900 font-bold bg-stone-100">
+                            <th className="py-2 px-1 text-center w-6">#</th>
+                            <th className="py-2 px-2">Ospite</th>
+                            <th className="py-2 px-2">Nucleo Familiare</th>
+                            <th className="py-2 px-1.5">Fascia</th>
+                            <th className="py-2 px-1.5">Relazione</th>
+                            <th className="py-2 px-2">Menu / Dieta</th>
+                            <th className="py-2 px-2.5 font-bold text-rose-900">Intolleranze &amp; Note Cucina</th>
+                            <th className="py-2 px-2">Referente</th>
+                            <th className="py-2 px-2">Telefono</th>
+                            <th className="py-2 px-2">Email</th>
+                            <th className="py-2 px-2">Hotel</th>
+                            <th className="py-2 px-1.5">Transfer</th>
+                            <th className="py-2 px-1.5 text-center">RSVP</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-stone-200">
+                          {allIndividualGuests.map((p, idx) => (
+                            <tr key={p.id} className={p.hasSpecialDiet ? 'bg-rose-50/60 font-medium' : ''}>
+                              <td className="py-1.5 px-1 text-center text-stone-400 font-mono">{idx + 1}</td>
+                              <td className="py-1.5 px-2 font-bold text-stone-900">{p.fullName}</td>
+                              <td className="py-1.5 px-2 text-stone-700">{p.familyName}</td>
+                              <td className="py-1.5 px-1.5 text-stone-600">{p.ageCategory}</td>
+                              <td className="py-1.5 px-1.5 text-stone-600">{p.relationship}</td>
+                              <td className="py-1.5 px-2 text-stone-800">{p.dietary}</td>
+                              <td className="py-1.5 px-2.5 text-rose-900 font-semibold">{p.intoleranceNotes || 'Nessuna'}</td>
+                              <td className="py-1.5 px-2 text-stone-700">{p.primaryContactName}</td>
+                              <td className="py-1.5 px-2 font-mono text-[9px] text-stone-600">{p.primaryContactPhone || '-'}</td>
+                              <td className="py-1.5 px-2 text-[9px] text-stone-500 truncate max-w-[110px]">{p.primaryContactEmail || '-'}</td>
+                              <td className="py-1.5 px-2 text-stone-700">{p.hotelBooked || 'In attesa'}</td>
+                              <td className="py-1.5 px-1.5 text-stone-700">{p.transferBooked || 'Autonomo'}</td>
+                              <td className="py-1.5 px-1.5 text-center font-bold text-[9px] uppercase">{p.status}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-stone-300 text-stone-800 font-bold bg-stone-100">
+                            <th className="py-2 px-2 w-8 text-center">#</th>
+                            <th className="py-2 px-3">Ospite</th>
+                            <th className="py-2 px-3">Nucleo Familiare</th>
+                            <th className="py-2 px-2">Fascia</th>
+                            <th className="py-2 px-3">Menu / Dieta</th>
+                            <th className="py-2 px-3 font-bold text-rose-900">Note Cucina &amp; Intolleranze Critiche</th>
+                            <th className="py-2 px-3">Referente &amp; Telefono</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-200">
+                          {allIndividualGuests.map((p, idx) => (
+                            <tr key={p.id} className={p.hasSpecialDiet ? 'bg-rose-50/60 font-medium' : ''}>
+                              <td className="py-2 px-2 text-center text-stone-400 font-mono">{idx + 1}</td>
+                              <td className="py-2 px-3 font-bold text-stone-900">{p.fullName}</td>
+                              <td className="py-2 px-3 text-stone-700">{p.familyName}</td>
+                              <td className="py-2 px-2 text-stone-700">{p.ageCategory}</td>
+                              <td className="py-2 px-3 text-stone-800">{p.dietary}</td>
+                              <td className="py-2 px-3 text-rose-900 font-bold">{p.intoleranceNotes || 'Nessuna segnalazione'}</td>
+                              <td className="py-2 px-3 text-stone-600 font-mono text-[11px]">{p.primaryContactName} ({p.primaryContactPhone || 'Tel non spec.'})</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 </div>
 
-                {/* Footer Modale con Azione Stampa */}
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-200">
-                  <button
-                    type="button"
-                    onClick={() => setShowRestaurantPrintModal(false)}
-                    className="px-4 py-2.5 rounded-xl border border-neutral-300 text-stone-700 text-xs font-semibold hover:bg-neutral-50 transition-colors cursor-pointer"
-                  >
-                    Chiudi
-                  </button>
+                {/* Footer Modale con Azione Stampa Orizzontale */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-neutral-200">
+                  <div className="text-[11px] text-neutral-500">
+                    💡 La stampa aprirà il dialogo di sistema preimpostato in <strong>Orizzontale (Landscape)</strong>.
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.print();
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all"
-                  >
-                    <Printer className="w-4 h-4 text-rose-300" />
-                    <span>Stampa Scheda Banchetto Ora</span>
-                  </button>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowRestaurantPrintModal(false)}
+                      className="px-4 py-2.5 rounded-xl border border-neutral-300 text-stone-700 text-xs font-semibold hover:bg-neutral-50 transition-colors cursor-pointer"
+                    >
+                      Chiudi
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.print();
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 transition-all"
+                    >
+                      <Printer className="w-4 h-4 text-amber-300" />
+                      <span>Stampa / Salva PDF Orizzontale</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

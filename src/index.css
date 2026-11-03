@@ -62,3 +62,79 @@ button:not(:disabled):hover {
 .text-amber-950 {
   color: #451a03 !important;
 }
+
+/* ========================================================================= */
+/* IMPOSTAZIONI STAMPA & PDF ORIZZONTALE (LANDSCAPE)                        */
+/* Adatta tutte le colonne della lista matrimonio in un unico foglio          */
+/* ========================================================================= */
+@page {
+  size: landscape;
+  margin: 6mm 8mm;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 6mm 8mm;
+  }
+
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    background: #ffffff !important;
+    color: #1c1917 !important;
+    font-size: 10pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Nascondi l'interfaccia dell'app durante la stampa */
+  body > * {
+    visibility: hidden;
+  }
+
+  #printable-catering-sheet,
+  #printable-catering-sheet * {
+    visibility: visible;
+  }
+
+  #printable-catering-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border: none !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  #printable-catering-sheet table {
+    width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+  }
+
+  #printable-catering-sheet th,
+  #printable-catering-sheet td {
+    padding: 3px 5px !important;
+    border: 1px solid #cbd5e1 !important;
+    word-break: break-word !important;
+    line-height: 1.25 !important;
+  }
+
+  #printable-catering-sheet th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}

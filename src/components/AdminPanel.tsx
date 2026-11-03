@@ -50,7 +50,8 @@ import {
   Filter,
   Menu,
   Heart,
-  Lightbulb
+  Lightbulb,
+  Printer
 } from 'lucide-react';
 import HamburgerMenu, { MenuItem } from './HamburgerMenu';
 import { 
@@ -3131,8 +3132,16 @@ export default function AdminPanel({
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleExportGuestsCsv}
+                  type="button"
+                  onClick={() => window.print()}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-stone-700 rounded-lg text-xs font-semibold cursor-pointer"
+                  title="Stampa o salva in PDF orizzontale (Landscape A4) con colonne adattate"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Stampa Orizzontale (PDF)
+                </button>
+                <button
+                  onClick={handleExportGuestsCsv}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-900 text-white rounded-lg text-xs font-semibold cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> Esporta CSV
                 </button>
