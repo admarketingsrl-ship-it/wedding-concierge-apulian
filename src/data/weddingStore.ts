@@ -385,6 +385,11 @@ export interface WeddingAlertNotification {
   timestamp: string;
   read: boolean;
   actionTab?: 'weddings' | 'wishlist' | 'guests' | 'hotels' | 'chat' | 'payments' | 'services' | 'experiences' | 'transfers';
+  preferredDate?: string;
+  participantsCount?: number;
+  budgetRange?: string;
+  guestEmail?: string;
+  guestPhone?: string;
 }
 
 export interface WeddingData {

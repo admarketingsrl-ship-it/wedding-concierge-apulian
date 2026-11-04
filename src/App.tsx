@@ -669,6 +669,11 @@ export default function App() {
       title: string;
       description: string;
       actionTab?: WeddingAlertNotification['actionTab'];
+      preferredDate?: string;
+      participantsCount?: number;
+      budgetRange?: string;
+      guestEmail?: string;
+      guestPhone?: string;
     }
   ) => {
     const cleanCode = (weddingCode || '').trim().toUpperCase();
@@ -684,7 +689,12 @@ export default function App() {
       description: notif.description,
       timestamp: `Oggi, ${nowTime}`,
       read: false,
-      actionTab: notif.actionTab || 'weddings'
+      actionTab: notif.actionTab || 'weddings',
+      preferredDate: notif.preferredDate,
+      participantsCount: notif.participantsCount,
+      budgetRange: notif.budgetRange,
+      guestEmail: notif.guestEmail,
+      guestPhone: notif.guestPhone
     };
 
     setWeddings(prev => {
@@ -1178,8 +1188,9 @@ export default function App() {
     }).catch(() => {});
   };
 
-  // Invio nuova proposta / desiderio su misura da parte dell'ospite
+  // Invio o aggiornamento proposta / desiderio su misura da parte dell'ospite
   const handleSendWish = (wish: { 
+    id?: string;
     title: string; 
     description: string; 
     preferredDate: string; 
@@ -1188,29 +1199,47 @@ export default function App() {
     weddingCode?: string;
     guestName?: string;
     guestEmail?: string;
+    guestPhone?: string;
   }) => {
     const targetWeddingCode = (wish.weddingCode || currentGuest?.weddingCode || weddings[0]?.weddingCode || 'CHIARA-MATTEO-2026').trim().toUpperCase();
     const guestName = wish.guestName || currentGuest?.name || 'Ospite';
     const guestEmail = (wish.guestEmail || currentGuest?.email || 'guest@example.com').trim().toLowerCase();
+    const guestPhone = wish.guestPhone || currentGuest?.phone || '';
     
+    // Controlla se esiste già questo desiderio (per id oppure per combinazione ospite + titolo)
+    const existingWish = wishRequests.find(w => 
+      (wish.id && w.id === wish.id) ||
+      (w.guestEmail.toLowerCase() === guestEmail && w.weddingCode === targetWeddingCode && w.title.toLowerCase().trim() === wish.title.toLowerCase().trim())
+    );
+
+    const targetId = wish.id || existingWish?.id || `wish-${Date.now()}`;
     const newWish: TouristWishRequest = {
-      id: `wish-${Date.now()}`,
+      ...(existingWish || {}),
+      id: targetId,
       weddingCode: targetWeddingCode,
       guestName,
       guestEmail,
-      guestPhone: currentGuest?.phone || '',
+      guestPhone: guestPhone || existingWish?.guestPhone || '',
       title: wish.title,
       description: wish.description,
       preferredDate: wish.preferredDate,
-      participantsCount: wish.participantsCount,
+      participantsCount: Number(wish.participantsCount) || 1,
       budgetRange: wish.budgetRange,
-      status: 'RECEIVED',
-      createdAt: new Date().toISOString().split('T')[0]
+      status: existingWish?.status || 'RECEIVED',
+      proposedCost: existingWish?.proposedCost,
+      agencyNotes: existingWish?.agencyNotes,
+      createdAt: existingWish?.createdAt || new Date().toISOString().split('T')[0]
     };
 
     setWishRequests(prev => {
-      const filtered = prev.filter(w => w.id !== newWish.id);
-      const updated = [newWish, ...filtered];
+      const idx = prev.findIndex(w => w.id === targetId);
+      let updated: TouristWishRequest[];
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = newWish;
+      } else {
+        updated = [newWish, ...prev];
+      }
       try {
         localStorage.setItem('apulian_wish_requests_v1', JSON.stringify(updated));
       } catch {}
@@ -1235,7 +1264,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
-          _subject: `Nuovo Desiderio Ospite Wishlist - ${newWish.guestName} (${targetWeddingCode})`,
+          _subject: `${existingWish ? 'Desiderio Ospite Aggiornato' : 'Nuovo Desiderio Ospite'} - ${newWish.guestName} (${targetWeddingCode})`,
           guestName: newWish.guestName,
           guestEmail: newWish.guestEmail,
           weddingCode: targetWeddingCode,
@@ -1263,9 +1292,14 @@ export default function App() {
       source: 'GUEST_WISH',
       authorName: newWish.guestName,
       authorRole: 'ospite',
-      title: `Nuovo Desiderio Ospite: ${newWish.title}`,
-      description: `${newWish.participantsCount} pax · ${newWish.description}`,
-      actionTab: 'wishlist'
+      title: existingWish ? `Aggiornato Desiderio Ospite: ${newWish.title}` : `Nuovo Desiderio Ospite: ${newWish.title}`,
+      description: `${newWish.participantsCount} ospiti · Data: ${newWish.preferredDate || 'Flessibile'} · Budget: ${newWish.budgetRange || 'N/D'} · "${newWish.description}"`,
+      actionTab: 'wishlist',
+      preferredDate: newWish.preferredDate,
+      participantsCount: newWish.participantsCount,
+      budgetRange: newWish.budgetRange,
+      guestEmail: newWish.guestEmail,
+      guestPhone: newWish.guestPhone
     });
   };
 
@@ -1997,9 +2031,10 @@ export default function App() {
         {currentView === 'guest' && (
           <GuestPortal 
             weddingData={activeGuestWedding} 
-            guestInfo={currentGuest || {
+            guestInfo={currentGuest ? { ...currentGuest, phone: currentGuest.phone || '+39 340 1234567' } : {
               name: 'Eleanor Vance',
               email: 'eleanor.vance@gmail.com',
+              phone: '+39 340 1234567',
               weddingCode: activeGuestWedding.weddingCode,
               provider: 'google',
               country: 'Stati Uniti'

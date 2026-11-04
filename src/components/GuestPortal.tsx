@@ -46,6 +46,7 @@ import {
   Smartphone,
   Upload,
   Copy,
+  Edit3,
   X
 } from 'lucide-react';
 import HamburgerMenu from './HamburgerMenu';
@@ -71,6 +72,7 @@ interface GuestPortalProps {
   guestInfo: {
     name: string;
     email: string;
+    phone: string;
     weddingCode: string;
     provider: 'google' | 'apple' | 'email';
     country?: string;
@@ -80,7 +82,7 @@ interface GuestPortalProps {
   onLogout: () => void;
   chatMessages: ChatMessage[];
   onSendMessage: (msg: { text: string; guestName: string; guestEmail: string; weddingCode: string }) => void;
-  onSendWish: (wish: { title: string; description: string; preferredDate: string; participantsCount: number; budgetRange: string; weddingCode?: string; guestName?: string; guestEmail?: string }) => void;
+  onSendWish: (wish: { id?: string; title: string; description: string; preferredDate: string; participantsCount: number; budgetRange: string; weddingCode?: string; guestName?: string; guestEmail?: string; guestPhone?: string }) => void;
   onConfirmBookingToSuppliers?: (orders: SupplierBookingOrder[]) => void;
   onSaveGuestChoices?: (guestPayload: any) => void;
   onUpdateWedding?: (updated: WeddingData) => void;
@@ -675,12 +677,13 @@ export default function GuestPortal({
   const [serviceNotes, setServiceNotes] = useState<Record<string, string>>({});
 
   // Modulo Nuova Richiesta / Desiderio Ospite
+  const [editingWishId, setEditingWishId] = useState<string | null>(null);
   const [wishTitle, setWishTitle] = useState('');
   const [wishDescription, setWishDescription] = useState('');
   const [wishDate, setWishDate] = useState('2026-09-14');
   const [wishParticipants, setWishParticipants] = useState(2);
   const [wishBudget, setWishBudget] = useState('€150 - €300');
-  const [wishSuccessMessage, setWishSuccessMessage] = useState(false);
+  const [wishSuccessMessage, setWishSuccessMessage] = useState<string | boolean>(false);
 
   // Input Chat con Valeria
   const [newChatMessage, setNewChatMessage] = useState('');
@@ -788,12 +791,13 @@ export default function GuestPortal({
     setNewChatMessage('');
   };
 
-  // Invio richiesta desiderio
+  // Invio o aggiornamento richiesta desiderio
   const handleSubmitWish = (e: React.FormEvent) => {
     e.preventDefault();
     if (!wishTitle.trim() || !wishDescription.trim()) return;
 
     onSendWish({
+      id: editingWishId || undefined,
       title: wishTitle.trim(),
       description: wishDescription.trim(),
       preferredDate: wishDate,
@@ -801,13 +805,18 @@ export default function GuestPortal({
       budgetRange: wishBudget,
       weddingCode: weddingData.weddingCode,
       guestName: guestInfo.name,
-      guestEmail: guestInfo.email
+      guestEmail: guestInfo.email,
+      guestPhone: guestInfo.phone
     });
 
-    setWishSuccessMessage(true);
+    const isUpdating = Boolean(editingWishId);
+    setWishSuccessMessage(isUpdating 
+      ? 'Dettagli della richiesta (data, partecipanti, budget) aggiornati con successo per Valeria!' 
+      : 'La tua richiesta è stata inviata a Valeria! La analizzeremo subito e ti invieremo una proposta personalizzata.');
+    setEditingWishId(null);
     setWishTitle('');
     setWishDescription('');
-    setTimeout(() => setWishSuccessMessage(false), 5000);
+    setTimeout(() => setWishSuccessMessage(false), 6000);
   };
 
   // Calcolo notti di soggiorno
@@ -1789,25 +1798,27 @@ export default function GuestPortal({
                 </div>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setRsvpStatus('DECLINED')}
-                className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
-                  rsvpStatus === 'DECLINED'
-                    ? 'bg-stone-700 text-white border-stone-700 shadow-xs ring-2 ring-neutral-900/20 font-semibold'
-                    : 'bg-white text-stone-700 border-neutral-200 hover:bg-neutral-100'
-                }`}
-              >
-                <div>
-                  <span className="block text-sm">Spiacente, non potrò partecipare</span>
-                  <span className={`block text-[11px] mt-0.5 ${rsvpStatus === 'DECLINED' ? 'text-neutral-300' : 'text-neutral-500'}`}>
-                    Non sarò presente all'evento ma auguro il meglio agli sposi
-                  </span>
-                </div>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${rsvpStatus === 'DECLINED' ? 'bg-white text-stone-800 border-white' : 'border-neutral-300'}`}>
-                  {rsvpStatus === 'DECLINED' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                </div>
-              </button>
+              {rsvpStatus !== 'CONFIRMED' && (
+                <button
+                  type="button"
+                  onClick={() => setRsvpStatus('DECLINED')}
+                  className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
+                    rsvpStatus === 'DECLINED'
+                      ? 'bg-stone-700 text-white border-stone-700 shadow-xs ring-2 ring-neutral-900/20 font-semibold'
+                      : 'bg-white text-stone-700 border-neutral-200 hover:bg-neutral-100'
+                  }`}
+                >
+                  <div>
+                    <span className="block text-sm">Spiacente, non potrò partecipare</span>
+                    <span className={`block text-[11px] mt-0.5 ${rsvpStatus === 'DECLINED' ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                      Non sarò presente all'evento ma auguro il meglio agli sposi
+                    </span>
+                  </div>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${rsvpStatus === 'DECLINED' ? 'bg-white text-stone-800 border-white' : 'border-neutral-300'}`}>
+                    {rsvpStatus === 'DECLINED' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  </div>
+                </button>
+              )}
             </div>
           </div>
 
@@ -3229,12 +3240,34 @@ export default function GuestPortal({
             <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                La tua richiesta è stata inviata a Valeria! La analizzeremo subito e ti invieremo una proposta personalizzata con tutti i dettagli.
+                {typeof wishSuccessMessage === 'string'
+                  ? wishSuccessMessage
+                  : 'La tua richiesta è stata inviata a Valeria! La analizzeremo subito e ti invieremo una proposta personalizzata con tutti i dettagli.'}
               </span>
             </div>
           )}
 
-          <form onSubmit={handleSubmitWish} className="p-6 bg-neutral-50 rounded-xl border border-neutral-200 space-y-4 text-xs">
+          <form id="guest-wish-form" onSubmit={handleSubmitWish} className="p-6 bg-neutral-50 rounded-xl border border-neutral-200 space-y-4 text-xs">
+            {editingWishId && (
+              <div className="p-3 bg-amber-100/80 border border-amber-300 rounded-lg flex items-center justify-between gap-2 text-amber-950 text-xs">
+                <span className="flex items-center gap-1.5 font-bold">
+                  <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Stai modificando la richiesta: aggiorna la data, i partecipanti o il budget indicativo.</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingWishId(null);
+                    setWishTitle('');
+                    setWishDescription('');
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-stone-100 text-stone-700 font-bold rounded text-[11px] border border-neutral-300 shrink-0 cursor-pointer"
+                >
+                  Annulla Modifica
+                </button>
+              </div>
+            )}
+
             <div>
               <label className="block font-semibold text-stone-700 mb-1">
                 Titolo dell'Attività Desiderata
@@ -3304,7 +3337,7 @@ export default function GuestPortal({
                 className="flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-stone-750 hover:bg-stone-700 rounded-lg transition-colors cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Invia Desiderio al Concierge</span>
+                <span>{editingWishId ? '✓ Salva Modifiche al Desiderio (Aggiorna per Valeria)' : 'Invia Desiderio al Concierge'}</span>
               </button>
             </div>
           </form>
@@ -3386,15 +3419,36 @@ export default function GuestPortal({
                               </div>
                             </div>
 
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 self-start sm:self-auto ${
-                              wish.status === 'RECEIVED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                              wish.status === 'PROPOSAL_READY' ? 'bg-indigo-100 text-indigo-950 border border-indigo-300' :
-                              'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                            }`}>
-                              {wish.status === 'RECEIVED' ? '⏳ IN VALUTAZIONE CONCIERGE' : 
-                               wish.status === 'PROPOSAL_READY' ? '💡 QUOTAZIONE PRONTA' : 
-                               wish.status === 'CONFIRMED' ? '🟢 CONFERMATO' : 'ARCHIVIATO'}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap shrink-0 self-start sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingWishId(wish.id);
+                                  setWishTitle(wish.title);
+                                  setWishDescription(wish.description);
+                                  setWishDate(wish.preferredDate || '2026-09-14');
+                                  setWishParticipants(wish.participantsCount || 2);
+                                  setWishBudget(wish.budgetRange || '€150 - €300');
+                                  const formEl = document.getElementById('guest-wish-form');
+                                  if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Modifica data preferita, budget indicativo e numero di partecipanti"
+                              >
+                                <Edit3 className="w-3 h-3 text-amber-700" />
+                                <span>Modifica Dettagli</span>
+                              </button>
+
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                wish.status === 'RECEIVED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                                wish.status === 'PROPOSAL_READY' ? 'bg-indigo-100 text-indigo-950 border border-indigo-300' :
+                                'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              }`}>
+                                {wish.status === 'RECEIVED' ? '⏳ IN VALUTAZIONE CONCIERGE' : 
+                                 wish.status === 'PROPOSAL_READY' ? '💡 QUOTAZIONE PRONTA' : 
+                                 wish.status === 'CONFIRMED' ? '🟢 CONFERMATO' : 'ARCHIVIATO'}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Testo richiesta originale */}

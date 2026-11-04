@@ -119,33 +119,48 @@ export default function AgencyDashboard({
   const consolidatedWishRequests = React.useMemo(() => {
     const map = new Map<string, TouristWishRequest>();
     (wishRequests || []).forEach(w => {
-      if (w.id) map.set(w.id, w);
+      if (w.id) map.set(w.id, { ...w });
     });
 
     (weddings || []).forEach(w => {
       (w.notifications || []).forEach(n => {
         if (n.source === 'GUEST_WISH') {
-          const alreadyExists = Array.from(map.values()).some(existing => 
-            existing.id === n.id || 
-            (existing.title && n.title && (
-              existing.title.toLowerCase().trim() === n.title.toLowerCase().trim() ||
-              n.title.toLowerCase().includes(existing.title.toLowerCase())
+          const existing = Array.from(map.values()).find(e => 
+            e.id === n.id || 
+            (e.title && n.title && (
+              e.title.toLowerCase().trim() === n.title.toLowerCase().trim() ||
+              n.title.toLowerCase().includes(e.title.toLowerCase()) ||
+              e.title.toLowerCase().includes(n.title.toLowerCase())
             ))
           );
 
-          if (!alreadyExists) {
-            const cleanTitle = n.title.replace(/^Nuov[ao] (Richiesta )?Desiderio( Ospite)?:\s*/i, '').trim();
+          if (existing) {
+            // Aggiorna data, budget e numero di ospiti in tempo reale
+            if (n.preferredDate) existing.preferredDate = n.preferredDate;
+            if (n.budgetRange) existing.budgetRange = n.budgetRange;
+            if (typeof n.participantsCount === 'number' && n.participantsCount > 0) existing.participantsCount = n.participantsCount;
+            if (n.guestEmail && (!existing.guestEmail || existing.guestEmail === 'ospite@matrimonio.it')) existing.guestEmail = n.guestEmail;
+            if (n.guestPhone && !existing.guestPhone) existing.guestPhone = n.guestPhone;
+            if (n.authorName && (!existing.guestName || existing.guestName === 'Ospite')) {
+              existing.guestName = n.authorName.replace(/\s*\(Ospite\)$/i, '');
+            }
+            map.set(existing.id, { ...existing });
+          } else {
+            const cleanTitle = n.title
+              .replace(/^Nuov[ao] (Richiesta )?Desiderio( Ospite)?:\s*/i, '')
+              .replace(/^Aggiornato Desiderio Ospite:\s*/i, '')
+              .trim();
             const synthWish: TouristWishRequest = {
               id: n.id || `wish-from-notif-${Date.now()}`,
               weddingCode: n.weddingCode || w.weddingCode,
               guestName: (n.authorName || 'Ospite').replace(/\s*\(Ospite\)$/i, ''),
-              guestEmail: (w.guests && w.guests.length > 0 ? w.guests[0].email : '') || 'ospite@matrimonio.it',
-              guestPhone: (w.guests && w.guests.length > 0 ? w.guests[0].phone : '') || '',
+              guestEmail: n.guestEmail || (w.guests && w.guests.length > 0 ? w.guests[0].email : '') || 'ospite@matrimonio.it',
+              guestPhone: n.guestPhone || (w.guests && w.guests.length > 0 ? w.guests[0].phone : '') || '',
               title: cleanTitle || n.title,
               description: n.description || 'Richiesta speciale registrata nel riassunto nozze.',
-              preferredDate: w.weddingDate || '2026-09-12',
-              participantsCount: 2,
-              budgetRange: '€150 - €300',
+              preferredDate: n.preferredDate || w.weddingDate || '2026-09-12',
+              participantsCount: typeof n.participantsCount === 'number' ? n.participantsCount : 2,
+              budgetRange: n.budgetRange || '€150 - €300',
               status: n.read ? 'CONFIRMED' : 'RECEIVED',
               agencyNotes: `Sincronizzato da avviso matrimonio (${n.timestamp || 'Recente'}).`,
               createdAt: n.timestamp || new Date().toISOString().substring(0, 10)
@@ -1131,6 +1146,41 @@ export default function AgencyDashboard({
                         >
                           <DollarSign className="w-3.5 h-3.5 text-amber-400" />
                           <span>{wish.proposedCost ? 'Modifica Prezzo' : 'Inserisci Quotazione'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newDate = prompt('Aggiorna Data preferita:', wish.preferredDate || '2026-09-12');
+                            if (newDate === null) return;
+                            const newPax = prompt('Aggiorna Numero ospiti (pax):', String(wish.participantsCount || 2));
+                            if (newPax === null) return;
+                            const newBudget = prompt('Aggiorna Budget indicativo:', wish.budgetRange || '€150 - €300');
+                            if (newBudget === null) return;
+
+                            const updatedItem: TouristWishRequest = {
+                              ...wish,
+                              preferredDate: newDate.trim() || wish.preferredDate,
+                              participantsCount: Math.max(1, Number(newPax) || wish.participantsCount || 2),
+                              budgetRange: newBudget.trim() || wish.budgetRange
+                            };
+                            const exists = (wishRequests || []).some(w => w.id === wish.id);
+                            const nextList = exists
+                              ? (wishRequests || []).map(w => w.id === wish.id ? updatedItem : w)
+                              : [updatedItem, ...(wishRequests || [])];
+                            if (onUpdateWishRequests) onUpdateWishRequests(nextList);
+                            fetch('/api/wishes', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(updatedItem)
+                            }).catch(() => {});
+                            setWishActionToast(`Dettagli aggiornati: ${updatedItem.participantsCount} pax · ${updatedItem.preferredDate} · ${updatedItem.budgetRange}`);
+                            setTimeout(() => setWishActionToast(null), 3500);
+                          }}
+                          className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-[11px] font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Modifica Dettagli (Data/Pax/Budget)</span>
                         </button>
 
                         <button

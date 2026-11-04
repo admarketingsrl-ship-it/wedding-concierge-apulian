@@ -355,6 +355,11 @@ export default function AdminPanel({
   const [proposalCostInput, setProposalCostInput] = useState<string>('150');
   const [proposalNotesInput, setProposalNotesInput] = useState<string>('');
   const [proposalStatusInput, setProposalStatusInput] = useState<'RECEIVED' | 'PROPOSAL_READY' | 'CONFIRMED'>('PROPOSAL_READY');
+  const [proposalDateInput, setProposalDateInput] = useState<string>('');
+  const [proposalBudgetInput, setProposalBudgetInput] = useState<string>('');
+  const [proposalParticipantsInput, setProposalParticipantsInput] = useState<number>(2);
+  const [proposalTitleInput, setProposalTitleInput] = useState<string>('');
+  const [proposalDescriptionInput, setProposalDescriptionInput] = useState<string>('');
   const [copiedProposalWishId, setCopiedProposalWishId] = useState<string | null>(null);
   const [emailFallbackModal, setEmailFallbackModal] = useState<{
     isOpen: boolean;
@@ -387,6 +392,7 @@ export default function AdminPanel({
       `📝 *Richiesta:* "${wish.description}"\n` +
       `📅 *Data indicativa:* ${wish.preferredDate || 'Da concordare'}\n` +
       `👥 *Partecipanti:* ${wish.participantsCount} pax\n` +
+      (wish.budgetRange ? `💶 *Budget indicativo ospite:* ${wish.budgetRange}\n` : '') +
       (wish.agencyNotes ? `💡 *Dettagli e organizzazione:* ${wish.agencyNotes}\n\n` : `\n`) +
       `💶 *QUOTAZIONE UFFICIALE: € ${cost}*\n\n` +
       `💳 *MODALITÀ DI PAGAMENTO:* \n` +
@@ -439,7 +445,8 @@ export default function AdminPanel({
             <p style="margin: 0 0 10px 0; font-size: 13px; font-style: italic; color: #666;">"${wish.description}"</p>
             <div style="font-size: 12px; color: #555;">
               <span>&bull; Data indicativa: <strong>${wish.preferredDate || 'Flessibile / Da concordare'}</strong></span><br/>
-              <span>&bull; Partecipanti: <strong>${wish.participantsCount} pax</strong></span>
+              <span>&bull; Partecipanti: <strong>${wish.participantsCount} pax</strong></span><br/>
+              ${wish.budgetRange ? `<span>&bull; Budget indicativo: <strong>${wish.budgetRange}</strong></span><br/>` : ''}
             </div>
             ${wish.agencyNotes ? `<div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e0d0c0; font-size: 13px; color: #3b281d;"><strong>Dettagli e organizzazione Valeria:</strong> ${wish.agencyNotes}</div>` : ''}
             <div style="margin-top: 14px; background: #e8f5e9; border: 1px solid #a5d6a7; padding: 12px; border-radius: 8px; text-align: center;">
@@ -551,6 +558,11 @@ export default function AdminPanel({
     setProposalCostInput(wish.proposedCost !== undefined ? String(wish.proposedCost) : '150');
     setProposalNotesInput(wish.agencyNotes || 'Proposta organizzata su misura con fornitori partner locali in Puglia.');
     setProposalStatusInput(wish.status === 'CONFIRMED' ? 'CONFIRMED' : 'PROPOSAL_READY');
+    setProposalDateInput(wish.preferredDate || '');
+    setProposalBudgetInput(wish.budgetRange || '');
+    setProposalParticipantsInput(wish.participantsCount || 2);
+    setProposalTitleInput(wish.title || '');
+    setProposalDescriptionInput(wish.description || '');
   };
 
   const handleSaveProposalModal = (andAction?: 'whatsapp' | 'email' | 'copy') => {
@@ -558,6 +570,11 @@ export default function AdminPanel({
     const costVal = Number(proposalCostInput) || 0;
     const updatedWish: TouristWishRequest = {
       ...editingProposalWish,
+      title: proposalTitleInput.trim() || editingProposalWish.title,
+      description: proposalDescriptionInput.trim() || editingProposalWish.description,
+      preferredDate: proposalDateInput.trim() || editingProposalWish.preferredDate,
+      participantsCount: Number(proposalParticipantsInput) || editingProposalWish.participantsCount || 2,
+      budgetRange: proposalBudgetInput.trim() || editingProposalWish.budgetRange,
       proposedCost: costVal,
       agencyNotes: proposalNotesInput.trim(),
       status: proposalStatusInput
@@ -575,7 +592,7 @@ export default function AdminPanel({
       body: JSON.stringify(updatedWish)
     }).catch(() => {});
 
-    setAlertActionToast(`✓ Quotazione di €${costVal} e note salvate per ${updatedWish.guestName}!`);
+    setAlertActionToast(`✓ Dettagli richiesta e quotazione di €${costVal} salvati per ${updatedWish.guestName}!`);
     setTimeout(() => setAlertActionToast(null), 3500);
 
     if (andAction === 'whatsapp') {
@@ -1544,34 +1561,49 @@ export default function AdminPanel({
 
     // 1. Aggiungi tutti i wishRequests registrati
     (wishRequests || []).forEach(w => {
-      if (w.id) map.set(w.id, w);
+      if (w.id) map.set(w.id, { ...w });
     });
 
     // 2. Ispeziona le notifiche di tutti i matrimoni per unificare qualsiasi segnalazione GUEST_WISH
     (weddings || []).forEach(w => {
       (w.notifications || []).forEach(n => {
         if (n.source === 'GUEST_WISH') {
-          const alreadyExists = Array.from(map.values()).some(existing => 
-            existing.id === n.id || 
-            (existing.title && n.title && (
-              existing.title.toLowerCase().trim() === n.title.toLowerCase().trim() ||
-              n.title.toLowerCase().includes(existing.title.toLowerCase())
+          const existing = Array.from(map.values()).find(e => 
+            e.id === n.id || 
+            (e.title && n.title && (
+              e.title.toLowerCase().trim() === n.title.toLowerCase().trim() ||
+              n.title.toLowerCase().includes(e.title.toLowerCase()) ||
+              e.title.toLowerCase().includes(n.title.toLowerCase())
             ))
           );
 
-          if (!alreadyExists) {
-            const cleanTitle = n.title.replace(/^Nuov[ao] (Richiesta )?Desiderio( Ospite)?:\s*/i, '').trim();
+          if (existing) {
+            // Aggiorna data, budget e numero di ospiti con i dati più recenti ricevuti
+            if (n.preferredDate) existing.preferredDate = n.preferredDate;
+            if (n.budgetRange) existing.budgetRange = n.budgetRange;
+            if (typeof n.participantsCount === 'number' && n.participantsCount > 0) existing.participantsCount = n.participantsCount;
+            if (n.guestEmail && (!existing.guestEmail || existing.guestEmail === 'ospite@matrimonio.it')) existing.guestEmail = n.guestEmail;
+            if (n.guestPhone && !existing.guestPhone) existing.guestPhone = n.guestPhone;
+            if (n.authorName && (!existing.guestName || existing.guestName === 'Ospite')) {
+              existing.guestName = n.authorName.replace(/\s*\(Ospite\)$/i, '');
+            }
+            map.set(existing.id, { ...existing });
+          } else {
+            const cleanTitle = n.title
+              .replace(/^Nuov[ao] (Richiesta )?Desiderio( Ospite)?:\s*/i, '')
+              .replace(/^Aggiornato Desiderio Ospite:\s*/i, '')
+              .trim();
             const synthWish: TouristWishRequest = {
               id: n.id || `wish-from-notif-${Date.now()}`,
               weddingCode: n.weddingCode || w.weddingCode,
               guestName: (n.authorName || 'Ospite').replace(/\s*\(Ospite\)$/i, ''),
-              guestEmail: (w.guests && w.guests.length > 0 ? w.guests[0].email : '') || 'ospite@matrimonio.it',
-              guestPhone: (w.guests && w.guests.length > 0 ? w.guests[0].phone : '') || '',
+              guestEmail: n.guestEmail || (w.guests && w.guests.length > 0 ? w.guests[0].email : '') || 'ospite@matrimonio.it',
+              guestPhone: n.guestPhone || (w.guests && w.guests.length > 0 ? w.guests[0].phone : '') || '',
               title: cleanTitle || n.title,
               description: n.description || 'Richiesta speciale registrata nel riassunto nozze.',
-              preferredDate: w.weddingDate || '2026-09-12',
-              participantsCount: 2,
-              budgetRange: '€150 - €300',
+              preferredDate: n.preferredDate || w.weddingDate || '2026-09-12',
+              participantsCount: typeof n.participantsCount === 'number' ? n.participantsCount : 2,
+              budgetRange: n.budgetRange || '€150 - €300',
               status: n.read ? 'CONFIRMED' : 'RECEIVED',
               agencyNotes: `Sincronizzato da avviso matrimonio (${n.timestamp || 'Recente'}).`,
               createdAt: n.timestamp || new Date().toISOString().substring(0, 10)
@@ -1606,10 +1638,15 @@ export default function AdminPanel({
             authorName: wr.guestName,
             authorRole: 'ospite',
             title: `Nuovo Desiderio: ${wr.title}`,
-            description: `${wr.participantsCount} pax · ${wr.description}`,
+            description: `${wr.participantsCount} pax · Data: ${wr.preferredDate || 'Flessibile'} · Budget: ${wr.budgetRange || 'N/D'} · "${wr.description}"`,
             timestamp: wr.createdAt || 'Di recente',
             read: false,
-            actionTab: 'wishlist'
+            actionTab: 'wishlist',
+            preferredDate: wr.preferredDate,
+            participantsCount: wr.participantsCount,
+            budgetRange: wr.budgetRange,
+            guestEmail: wr.guestEmail,
+            guestPhone: wr.guestPhone
           });
         }
       });
@@ -5406,22 +5443,22 @@ export default function AdminPanel({
                       )}
 
                       <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-stone-600 border-t border-stone-100 pt-3">
-                        <div className="flex flex-wrap items-center gap-4 text-[11px]">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                            <span>Data: <strong className="text-stone-800">{wish.preferredDate || 'Flessibile'}</strong></span>
+                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                          <div className="flex items-center gap-1.5 bg-amber-50/80 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-200">
+                            <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Data: <strong className="text-stone-900 font-bold">{wish.preferredDate || 'Flessibile'}</strong></span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="w-3.5 h-3.5 text-stone-400" />
-                            <span>Pax: <strong className="text-stone-800">{wish.participantsCount}</strong></span>
+                          <div className="flex items-center gap-1.5 bg-amber-50/80 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-200">
+                            <Users className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Ospiti: <strong className="text-stone-900 font-bold">{wish.participantsCount} pax</strong></span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-3.5 h-3.5 text-stone-400" />
-                            <span>Budget: <strong className="text-stone-800">{wish.budgetRange || 'Non specificato'}</strong></span>
+                          <div className="flex items-center gap-1.5 bg-amber-50/80 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-200">
+                            <DollarSign className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Budget: <strong className="text-stone-900 font-bold">{wish.budgetRange || 'Non specificato'}</strong></span>
                           </div>
                           {wish.proposedCost !== undefined && (
-                            <div className="flex items-center gap-1 text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                              <span>Proposta: € {wish.proposedCost}</span>
+                            <div className="flex items-center gap-1 text-emerald-900 font-bold bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-300">
+                              <span>Quotazione Valeria: € {wish.proposedCost}</span>
                             </div>
                           )}
                         </div>
@@ -5453,15 +5490,15 @@ export default function AdminPanel({
                         {/* Azioni Amministrazione e Comunicazione */}
                         <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-stone-100">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {/* Definisci / Modifica Quotazione */}
+                            {/* Definisci / Modifica Quotazione e Dettagli */}
                             <button 
                               type="button"
                               onClick={() => handleOpenProposalModal(wish)}
-                              className="px-3 py-1.5 bg-stone-800 text-white text-[11px] font-bold rounded-lg hover:bg-stone-900 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
-                              title="Imposta quotazione e note per l'ospite"
+                              className="px-3 py-1.5 bg-stone-900 text-white text-[11px] font-bold rounded-lg hover:bg-stone-800 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                              title="Visualizza e modifica data, budget, numero ospiti e imposta la quotazione ufficiale"
                             >
                               <DollarSign className="w-3.5 h-3.5 text-amber-400" />
-                              <span>{wish.proposedCost !== undefined ? `Quotazione (€${wish.proposedCost})` : 'Definisci Quotazione'}</span>
+                              <span>{wish.proposedCost !== undefined ? `Modifica Dettagli & Quota (€${wish.proposedCost})` : 'Dettagli & Nuova Quotazione'}</span>
                             </button>
 
                             {/* Copia Testo per WhatsApp / Email */}
@@ -8448,20 +8485,84 @@ export default function AdminPanel({
 
             {/* Corpo Form Modal */}
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
-              {/* Richiesta originale ospite */}
-              <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200/80 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 block">Richiesta inviata dall'ospite:</span>
-                <p className="text-stone-800 italic leading-relaxed">"{editingProposalWish.description}"</p>
-                <div className="flex flex-wrap items-center gap-3 text-[11px] text-neutral-500 pt-1">
-                  <span>Data: <strong>{editingProposalWish.preferredDate || 'Flessibile'}</strong></span>
-                  <span>•</span>
-                  <span>Pax: <strong>{editingProposalWish.participantsCount} partecipanti</strong></span>
-                  {editingProposalWish.budgetRange && (
-                    <>
-                      <span>•</span>
-                      <span>Budget: <strong>{editingProposalWish.budgetRange}</strong></span>
-                    </>
-                  )}
+              {/* Dettagli della Richiesta Ospite (Aggiornabili da Valeria) */}
+              <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 space-y-3">
+                <div className="flex items-center justify-between pb-1.5 border-b border-amber-200/60">
+                  <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Dettagli della Richiesta Ospite (Aggiornabili in tempo reale)</span>
+                  </span>
+                  <span className="text-[10px] text-amber-800 font-medium">
+                    Modifiche sincronizzate su portale e notifiche
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 mb-1 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-amber-700" />
+                      <span>Data Preferita / Richiesta</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={proposalDateInput}
+                      onChange={(e) => setProposalDateInput(e.target.value)}
+                      className="w-full p-2 bg-white border border-stone-300 rounded-xl text-xs font-semibold text-stone-800 focus:ring-1 focus:ring-amber-800 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 mb-1 flex items-center gap-1">
+                      <Users className="w-3 h-3 text-amber-700" />
+                      <span>Numero Ospiti / Partecipanti</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={proposalParticipantsInput}
+                      onChange={(e) => setProposalParticipantsInput(Math.max(1, Number(e.target.value)))}
+                      className="w-full p-2 bg-white border border-stone-300 rounded-xl text-xs font-semibold text-stone-800 focus:ring-1 focus:ring-amber-800 focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 mb-1 flex items-center gap-1">
+                      <DollarSign className="w-3 h-3 text-amber-700" />
+                      <span>Budget Indicativo Ospite</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={proposalBudgetInput}
+                      onChange={(e) => setProposalBudgetInput(e.target.value)}
+                      placeholder="Es. €150 - €300"
+                      className="w-full p-2 bg-white border border-stone-300 rounded-xl text-xs font-semibold text-stone-800 focus:ring-1 focus:ring-amber-800 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                    Titolo Desiderio / Attività
+                  </label>
+                  <input
+                    type="text"
+                    value={proposalTitleInput}
+                    onChange={(e) => setProposalTitleInput(e.target.value)}
+                    className="w-full p-2 bg-white border border-stone-300 rounded-xl text-xs font-semibold text-stone-800 focus:ring-1 focus:ring-amber-800 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                    Descrizione e Dettagli inviati dall'Ospite
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={proposalDescriptionInput}
+                    onChange={(e) => setProposalDescriptionInput(e.target.value)}
+                    className="w-full p-2 bg-white border border-stone-300 rounded-xl text-xs text-stone-800 leading-relaxed focus:ring-1 focus:ring-amber-800 focus:outline-hidden"
+                  />
                 </div>
               </div>
 
@@ -8482,7 +8583,7 @@ export default function AdminPanel({
                     placeholder="Es. 180"
                     className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl text-sm font-mono font-bold text-emerald-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   />
-                  <span className="text-[10px] text-neutral-500 mt-0.5 block">Importo totale proposto per {editingProposalWish.participantsCount} pax.</span>
+                  <span className="text-[10px] text-neutral-500 mt-0.5 block">Importo totale proposto per {proposalParticipantsInput} pax.</span>
                 </div>
 
                 <div>
@@ -8553,6 +8654,11 @@ export default function AdminPanel({
                 <div className="p-3 bg-stone-900 text-stone-200 font-mono text-[11px] rounded-xl whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
                   {generateWishWhatsAppMessage({
                     ...editingProposalWish,
+                    title: proposalTitleInput || editingProposalWish.title,
+                    description: proposalDescriptionInput || editingProposalWish.description,
+                    preferredDate: proposalDateInput || editingProposalWish.preferredDate,
+                    participantsCount: Number(proposalParticipantsInput) || editingProposalWish.participantsCount,
+                    budgetRange: proposalBudgetInput || editingProposalWish.budgetRange,
                     proposedCost: Number(proposalCostInput) || 0,
                     agencyNotes: proposalNotesInput
                   })}
