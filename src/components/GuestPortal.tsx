@@ -1503,6 +1503,62 @@ export default function GuestPortal({
       {/* ========================================================================= */}
       {activeTab === 'couple-info' && (
         <div className="space-y-6">
+          {/* Panoramica Completa Servizi & Voci di Menu (Catalogati per Tipologia - Stile Menu) */}
+          <div className="border border-stone-200/90 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-4">
+            <div className="border-b border-stone-100 pb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                Panoramica Servizi &amp; Voci di Menu
+              </span>
+              <h2 className="text-xl font-serif-luxury font-bold text-stone-900 mt-2">
+                Esplora Tutti i Servizi &amp; Sezioni Dedicate
+              </h2>
+              <p className="text-xs text-neutral-600 mt-1">
+                Tutti i servizi offerti per il matrimonio di <strong className="text-stone-900">{weddingData.coupleNames}</strong>, catalogati per tipologia. Clicca su qualsiasi voce per accedere direttamente.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {navItems.map((item) => {
+                const descriptions: Record<string, string> = {
+                  'couple-info': 'Benvenuto, storia d\'amore, dress code e programma.',
+                  'rsvp': 'Conferma di presenza, famiglia e intolleranze.',
+                  'album': 'Album fotografico condiviso con scatto live (fino a 30 foto).',
+                  'hotels': 'Room blocks convenzionati e suite in masseria.',
+                  'transfers': 'Navette aeroportuali VIP da Bari e Brindisi.',
+                  'experiences': 'Tour in barca, Vespa vintage e degustazioni.',
+                  'services': 'Servizi di bellezza in camera e assistenti.',
+                  'wishes': 'Richieste personalizzate su misura con Valeria.',
+                  'chat': 'Assistenza diretta in tempo reale con il Concierge.',
+                  'itinerary': 'Itinerario confermato e riepilogo scelte.',
+                  'payments': 'Portale pagamenti diretti e coordinate IBAN.'
+                };
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id as any)}
+                    className="w-full flex items-start gap-3.5 p-4 rounded-xl text-left bg-stone-50 hover:bg-stone-900 hover:text-white transition-all cursor-pointer border border-stone-200/80 group shadow-2xs"
+                  >
+                    <div className="p-2.5 rounded-xl bg-stone-200/80 text-stone-800 group-hover:bg-white/15 group-hover:text-amber-200 transition-colors shrink-0">
+                      {item.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-sm font-bold text-stone-900 group-hover:text-white truncate">
+                          {item.label}
+                        </span>
+                        <ChevronRight className="w-4 h-4 shrink-0 text-stone-400 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                      <p className="text-[11px] text-stone-500 group-hover:text-stone-300 mt-1 leading-relaxed">
+                        {descriptions[item.id] || 'Esplora sezione'}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Card Dettagli & Dress Code */}
           <div className="border border-neutral-200 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-6">
             <div className="border-b border-neutral-100 pb-4">
