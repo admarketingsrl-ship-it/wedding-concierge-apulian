@@ -150,7 +150,7 @@ export default function GuestPortal({
     { id: 'hotels', label: 'Hotel', icon: <Building2 className="w-5 h-5" /> },
     { id: 'transfers', label: 'Transfer', icon: <Car className="w-5 h-5" /> },
     { id: 'experiences', label: 'Esperienze', icon: <Compass className="w-5 h-5" /> },
-    { id: 'services', label: 'Servizi Extra', icon: <Sparkles className="w-5 h-5" /> },
+    { id: 'services', label: 'Servizi e Info', icon: <Sparkles className="w-5 h-5" /> },
     { id: 'wishes', label: 'Desideri', icon: <Lightbulb className="w-5 h-5" /> },
     { id: 'chat', label: 'Chat', icon: <MessageCircle className="w-5 h-5" /> },
     { id: 'itinerary', label: 'Programma', icon: <Calendar className="w-5 h-5" /> },
