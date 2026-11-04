@@ -170,8 +170,6 @@ export default function GuestPortal({
   const [albumUploadProgress, setAlbumUploadProgress] = useState<string>('');
   const [copiedWishField, setCopiedWishField] = useState<string | null>(null);
   const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
-  const [floatingChatPosition, setFloatingChatPosition] = useState<'bottom' | 'middle' | 'top'>('bottom');
-  const [isFloatingChatDismissed, setIsFloatingChatDismissed] = useState(false);
 
   const currentGuestEmail = (guestInfo?.email || '').trim().toLowerCase();
   const allWeddingAlbumPhotos: WeddingAlbumPhoto[] = weddingData.weddingAlbumPhotos || [];
@@ -5172,188 +5170,110 @@ export default function GuestPortal({
       )}
 
       {/* ========================================================================= */}
-      {/* FLOATING CHAT WIDGET (VALERIA CONCIERGE) - SPOSTABILE E CHIUDIBILE        */}
+      {/* CHAT WIDGET (VALERIA CONCIERGE) - LINGUETTA LATERALE DESTRA              */}
       {/* ========================================================================= */}
-      {/* Linguetta discreta laterale se la chat è stata chiusa/minimizzata */}
-      {isFloatingChatDismissed && (
-        <div className="fixed right-0 bottom-24 z-50 animate-fade-in">
+      {/* Linguetta discreta e elegante fissa sul bordo destro per aprire la chat */}
+      {!isFloatingChatOpen && (
+        <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50 animate-fade-in">
           <button
             type="button"
-            onClick={() => setIsFloatingChatDismissed(false)}
-            className="bg-stone-900 hover:bg-black text-amber-300 border-l border-y border-amber-400/60 px-2.5 py-3 rounded-l-2xl shadow-2xl flex flex-col items-center gap-1.5 transition-all cursor-pointer group hover:pl-3.5"
-            title="Riapri l'assistenza chat con Valeria Concierge"
+            onClick={() => setIsFloatingChatOpen(true)}
+            className="bg-stone-900 hover:bg-black text-amber-300 border-l-2 border-y border-amber-400/80 px-2.5 py-4 rounded-l-2xl shadow-2xl flex flex-col items-center gap-2 transition-all cursor-pointer group hover:pl-4"
+            title="Apri l'assistenza chat in tempo reale con Valeria Concierge"
           >
             <div className="relative">
-              <MessageCircle className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
-              <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -top-1 -right-1 animate-pulse" />
+              <MessageCircle className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 absolute -top-1 -right-1 animate-pulse ring-2 ring-stone-900" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200 [writing-mode:vertical-rl] rotate-180">
-              Chat Concierge
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-200 [writing-mode:vertical-rl] rotate-180">
+              Chat Concierge Valeria
             </span>
           </button>
         </div>
       )}
 
-      {/* Widget Fluttuante Principale (Visibile se non dismissed) */}
-      {!isFloatingChatDismissed && (
-        <div 
-          className={`fixed z-50 flex flex-col items-end transition-all duration-300 ${
-            floatingChatPosition === 'top' 
-              ? 'top-20 right-4 sm:right-6' 
-              : floatingChatPosition === 'middle' 
-                ? 'top-1/2 -translate-y-1/2 right-4 sm:right-6' 
-                : 'bottom-6 right-4 sm:right-6'
-          }`}
-        >
-          {isFloatingChatOpen ? (
-            <div className="w-85 sm:w-96 bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[500px] max-h-[85vh] animate-scale-up">
-              {/* Header Chat con pulsanti Sposta e Chiudi */}
-              <div className="p-3.5 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 text-white flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-emerald-700 border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-white">
-                    V
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold block text-white">Valeria Concierge</span>
-                    <span className="text-[10px] text-emerald-300 flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      Online · AD Marketing Puglia
-                    </span>
-                  </div>
+      {/* Finestra Popup Chat (Visibile quando aperta tramite la linguetta) */}
+      {isFloatingChatOpen && (
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex flex-col items-end animate-scale-up">
+          <div className="w-85 sm:w-96 bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[520px] max-h-[85vh]">
+            {/* Header Chat */}
+            <div className="p-3.5 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-emerald-700 border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-white">
+                  V
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  {/* Pulsante Sposta Posizione (In alto / Centro / In basso) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFloatingChatPosition(prev => prev === 'bottom' ? 'middle' : prev === 'middle' ? 'top' : 'bottom');
-                    }}
-                    className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-stone-200 hover:text-white text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                    title={`Sposta posizione della chat (Attuale: ${floatingChatPosition === 'bottom' ? 'Basso' : floatingChatPosition === 'middle' ? 'Centro' : 'Alto'})`}
-                  >
-                    <span>Sposta</span>
-                  </button>
-
-                  {/* Minimizza */}
-                  <button
-                    type="button"
-                    onClick={() => setIsFloatingChatOpen(false)}
-                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-                    title="Minimizza chat"
-                  >
-                    <span className="font-bold text-xs leading-none">−</span>
-                  </button>
-
-                  {/* Chiudi / Nascondi se non serve */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsFloatingChatOpen(false);
-                      setIsFloatingChatDismissed(true);
-                    }}
-                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
-                    title="Chiudi e nascondi chat (riapribile dalla linguetta a destra)"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                <div>
+                  <span className="text-xs font-bold block text-white">Valeria Concierge</span>
+                  <span className="text-[10px] text-emerald-300 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Online · AD Marketing Puglia
+                  </span>
                 </div>
               </div>
 
-              {/* Area Messaggi */}
-              <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 bg-neutral-50 text-xs">
-                {guestChatHistory.length === 0 ? (
-                  <div className="text-center py-8 text-neutral-400 space-y-2">
-                    <MessageCircle className="w-8 h-8 mx-auto text-emerald-600/60" />
-                    <p className="font-semibold text-stone-700">Scrivi a Valeria Concierge</p>
-                    <p className="text-[11px] text-neutral-500 max-w-[240px] mx-auto">
-                      Hai domande su hotel, trasferimenti, desideri o programma? Valeria risponderà in tempo reale.
-                    </p>
-                  </div>
-                ) : (
-                  guestChatHistory.map((m, idx) => {
-                    const isGuest = m.sender === 'guest';
-                    const isCouple = m.sender === 'couple';
-                    return (
-                      <div key={m.id || idx} className={`flex ${isGuest ? 'justify-end' : 'justify-start'} mt-2`}>
-                        <div className={`max-w-[85%] rounded-2xl p-2.5 text-xs shadow-2xs space-y-1 ${
-                          isGuest ? 'bg-stone-800 text-white rounded-br-none' :
-                          isCouple ? 'bg-rose-50 border border-rose-200 text-rose-950 rounded-bl-none' :
-                          'bg-white border border-neutral-200 text-stone-800 rounded-bl-none'
-                        }`}>
-                          <div className={`text-[9px] font-semibold ${isGuest ? 'text-neutral-300' : isCouple ? 'text-rose-700' : 'text-emerald-700'}`}>
-                            {isGuest ? 'Tu' : isCouple ? `Sposi (${weddingData.coupleNames})` : 'Valeria Concierge'}
-                          </div>
-                          <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>
-                          <div className={`text-[8px] text-right pt-0.5 ${isGuest ? 'text-neutral-300' : 'text-neutral-400'}`}>
-                            {m.timestamp}
-                          </div>
+              <button
+                type="button"
+                onClick={() => setIsFloatingChatOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Chiudi chat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Area Messaggi */}
+            <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 bg-neutral-50 text-xs">
+              {guestChatHistory.length === 0 ? (
+                <div className="text-center py-8 text-neutral-400 space-y-2">
+                  <MessageCircle className="w-8 h-8 mx-auto text-emerald-600/60" />
+                  <p className="font-semibold text-stone-700">Scrivi a Valeria Concierge</p>
+                  <p className="text-[11px] text-neutral-500 max-w-[240px] mx-auto">
+                    Hai domande su hotel, trasferimenti, desideri o programma? Valeria risponderà in tempo reale.
+                  </p>
+                </div>
+              ) : (
+                guestChatHistory.map((m, idx) => {
+                  const isGuest = m.sender === 'guest';
+                  const isCouple = m.sender === 'couple';
+                  return (
+                    <div key={m.id || idx} className={`flex ${isGuest ? 'justify-end' : 'justify-start'} mt-2`}>
+                      <div className={`max-w-[85%] rounded-2xl p-2.5 text-xs shadow-2xs space-y-1 ${
+                        isGuest ? 'bg-stone-800 text-white rounded-br-none' :
+                        isCouple ? 'bg-rose-50 border border-rose-200 text-rose-950 rounded-bl-none' :
+                        'bg-white border border-neutral-200 text-stone-800 rounded-bl-none'
+                      }`}>
+                        <div className={`text-[9px] font-semibold ${isGuest ? 'text-neutral-300' : isCouple ? 'text-rose-700' : 'text-emerald-700'}`}>
+                          {isGuest ? 'Tu' : isCouple ? `Sposi (${weddingData.coupleNames})` : 'Valeria Concierge'}
+                        </div>
+                        <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                        <div className={`text-[8px] text-right pt-0.5 ${isGuest ? 'text-neutral-300' : 'text-neutral-400'}`}>
+                          {m.timestamp}
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Form invio */}
-              <form onSubmit={handleSendChat} className="p-2.5 border-t border-neutral-200 bg-white flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newChatMessage}
-                  onChange={(e) => setNewChatMessage(e.target.value)}
-                  placeholder="Scrivi un messaggio a Valeria..."
-                  className="flex-1 text-xs p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl focus:outline-hidden focus:bg-white"
-                />
-                <button
-                  type="submit"
-                  className="p-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl cursor-pointer transition-colors shadow-xs"
-                  title="Invia messaggio"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </form>
+                    </div>
+                  );
+                })
+              )}
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5 p-1 bg-stone-900/90 rounded-full shadow-2xl border-2 border-amber-300/80 backdrop-blur-xs">
-              {/* Pulsante principale chat */}
-              <button
-                type="button"
-                onClick={() => setIsFloatingChatOpen(true)}
-                className="flex items-center gap-2 pl-3 pr-4 py-2 text-white transition-all cursor-pointer group"
-                title="Apri Assistenza Chat con Valeria"
-              >
-                <div className="relative">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 ring-2 ring-stone-900 animate-pulse" />
-                  <MessageCircle className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
-                </div>
-                <span className="text-xs font-bold font-serif-luxury text-amber-200">
-                  Assistenza Valeria
-                </span>
-              </button>
 
-              {/* Pulsante rapido per spostare la posizione */}
+            {/* Form invio */}
+            <form onSubmit={handleSendChat} className="p-2.5 border-t border-neutral-200 bg-white flex items-center gap-2">
+              <input
+                type="text"
+                value={newChatMessage}
+                onChange={(e) => setNewChatMessage(e.target.value)}
+                placeholder="Scrivi un messaggio a Valeria..."
+                className="flex-1 text-xs p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl focus:outline-hidden focus:bg-white"
+              />
               <button
-                type="button"
-                onClick={() => {
-                  setFloatingChatPosition(prev => prev === 'bottom' ? 'middle' : prev === 'middle' ? 'top' : 'bottom');
-                }}
-                className="px-2 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white text-[10px] transition-colors cursor-pointer"
-                title={`Sposta pulsante chat in ${floatingChatPosition === 'bottom' ? 'Centro' : floatingChatPosition === 'middle' ? 'Alto' : 'Basso'}`}
+                type="submit"
+                className="p-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl cursor-pointer transition-colors shadow-xs"
+                title="Invia messaggio"
               >
-                ↕ Sposta
+                <Send className="w-3.5 h-3.5" />
               </button>
-
-              {/* Pulsante rapido per chiudere/nascondere se non serve */}
-              <button
-                type="button"
-                onClick={() => setIsFloatingChatDismissed(true)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-rose-600 text-stone-300 hover:text-white transition-colors cursor-pointer mr-0.5"
-                title="Chiudi / Nascondi chat se non serve"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
       )}
     </div>
