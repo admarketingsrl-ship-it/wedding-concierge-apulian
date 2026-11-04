@@ -45,7 +45,8 @@ import {
   Eye,
   Smartphone,
   Upload,
-  Copy
+  Copy,
+  X
 } from 'lucide-react';
 import HamburgerMenu from './HamburgerMenu';
 import { 
@@ -166,6 +167,9 @@ export default function GuestPortal({
   const [previewAlbumPhoto, setPreviewAlbumPhoto] = useState<WeddingAlbumPhoto | null>(null);
   const [albumUploadProgress, setAlbumUploadProgress] = useState<string>('');
   const [copiedWishField, setCopiedWishField] = useState<string | null>(null);
+  const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
+  const [floatingChatPosition, setFloatingChatPosition] = useState<'bottom' | 'middle' | 'top'>('bottom');
+  const [isFloatingChatDismissed, setIsFloatingChatDismissed] = useState(false);
 
   const currentGuestEmail = (guestInfo?.email || '').trim().toLowerCase();
   const allWeddingAlbumPhotos: WeddingAlbumPhoto[] = weddingData.weddingAlbumPhotos || [];
@@ -383,6 +387,7 @@ export default function GuestPortal({
   const [editIntolerances, setEditIntolerances] = useState('');
 
   const [rsvpSavedSuccess, setRsvpSavedSuccess] = useState(false);
+  const [showRsvpThankYouModal, setShowRsvpThankYouModal] = useState(false);
 
   const startEditCompanion = (comp: Companion) => {
     setEditingCompanionId(comp.id);
@@ -457,7 +462,8 @@ export default function GuestPortal({
     }
 
     setRsvpSavedSuccess(true);
-    setTimeout(() => setRsvpSavedSuccess(false), 4000);
+    setShowRsvpThankYouModal(true);
+    setTimeout(() => setRsvpSavedSuccess(false), 8000);
   };
 
   // Cataloghi di fallback se non definiti nel matrimonio specifico
@@ -559,7 +565,7 @@ export default function GuestPortal({
   ];
 
   // Selezione Hotel (Opzionale: l'ospite può non volere l'hotel!)
-  const [wantsHotel, setWantsHotel] = useState<boolean>(false);
+  const [wantsHotel, setWantsHotel] = useState<boolean>(true);
   const [selectedHotelId, setSelectedHotelId] = useState<string>(hotels[0]?.id || '');
   const [selectedRoomTypeName, setSelectedRoomTypeName] = useState<string>(
     hotels[0]?.roomTypes[0]?.name || ''
@@ -640,9 +646,14 @@ export default function GuestPortal({
   };
 
   // Selezione Transfer (Opzionale: l'ospite può viaggiare in autonomia!)
-  const [wantsTransfer, setWantsTransfer] = useState<boolean>(false);
+  const [wantsTransfer, setWantsTransfer] = useState<boolean>(true);
   const [selectedTransferIds, setSelectedTransferIds] = useState<Array<string>>([]);
   const [isRequestingTaxi, setIsRequestingTaxi] = useState<boolean>(false);
+  const [taxiVehicleType, setTaxiVehicleType] = useState<string>("Auto d'epoca / Vintage Cabrio");
+  const [taxiPickupLocation, setTaxiPickupLocation] = useState<string>('');
+  const [taxiDestinationLocation, setTaxiDestinationLocation] = useState<string>('');
+  const [taxiTime, setTaxiTime] = useState<string>('');
+  const [taxiPassengersCount, setTaxiPassengersCount] = useState<number>(2);
   const [taxiDetails, setTaxiDetails] = useState('');
   const [transferDetails, setTransferDetails] = useState('');
   const [flightNumber, setFlightNumber] = useState('Ryanair FR7082');
@@ -1384,6 +1395,70 @@ export default function GuestPortal({
     return false;
   });
 
+  // Navigazione Evidenziata in Alto per il Flusso delle Prenotazioni (Passo precedente / successivo)
+  const bookingFlowSteps = [
+    { id: 'hotels', num: 1, label: 'Hotel & Dimore', title: 'Hotel e Suite Convenzionate' },
+    { id: 'transfers', num: 2, label: 'Transfer & Navette', title: 'Transfer & Navette Aeroportuali' },
+    { id: 'experiences', num: 3, label: 'Esperienze', title: 'Esperienze Pugliesi & Party' },
+    { id: 'services', num: 4, label: 'Servizi Beauty', title: 'Servizi di Bellezza & Styling' },
+    { id: 'wishes', num: 5, label: 'Desideri', title: 'Desideri & Richieste su Misura' }
+  ];
+
+  const renderBookingHeaderNav = (currentTabId: string) => {
+    const currentIndex = bookingFlowSteps.findIndex(s => s.id === currentTabId);
+    if (currentIndex === -1) return null;
+
+    const currentStep = bookingFlowSteps[currentIndex];
+    const prevStep = currentIndex > 0 
+      ? bookingFlowSteps[currentIndex - 1] 
+      : { id: 'rsvp', num: 0, label: 'RSVP & Famiglia', title: 'Conferma Presenza (RSVP)' };
+    const nextStep = currentIndex < bookingFlowSteps.length - 1 
+      ? bookingFlowSteps[currentIndex + 1] 
+      : { id: 'itinerary', num: 6, label: 'Programma & Riepilogo', title: 'Riepilogo Scelte' };
+
+    return (
+      <div className="rounded-2xl bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 border border-stone-700/80 p-3.5 sm:p-4 text-white shadow-md mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Pulsante Precedente Evidenziato */}
+          <button
+            type="button"
+            onClick={() => setActiveTab(prevStep.id as any)}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-2 px-3.5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-100 border border-stone-600 transition-all font-semibold text-xs shadow-xs cursor-pointer group hover:border-stone-500"
+            title={`Torna alla sezione precedente: ${prevStep.title}`}
+          >
+            <ChevronLeft className="w-4 h-4 text-amber-300 group-hover:-translate-x-1 transition-transform shrink-0" />
+            <span className="truncate">
+              ← Precedente: <strong className="text-white font-bold">{prevStep.label}</strong>
+            </span>
+          </button>
+
+          {/* Dettaglio Passo Corrente */}
+          <div className="flex flex-col items-center text-center px-2">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-amber-300">
+              Passo {currentStep.num} di {bookingFlowSteps.length} · Prenotazioni
+            </span>
+            <span className="text-xs sm:text-sm font-serif-luxury font-bold text-white mt-0.5">
+              {currentStep.title}
+            </span>
+          </div>
+
+          {/* Pulsante Successivo Evidenziato */}
+          <button
+            type="button"
+            onClick={() => setActiveTab(nextStep.id as any)}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-end gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-bold text-xs shadow-md transition-all cursor-pointer group"
+            title={`Passa alla sezione successiva: ${nextStep.title}`}
+          >
+            <span className="truncate">
+              Successiva: <strong className="text-stone-950 font-black">{nextStep.label}</strong> →
+            </span>
+            <ChevronRight className="w-4 h-4 text-stone-950 group-hover:translate-x-1 transition-transform shrink-0" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Banner Intestazione Ospite & Indicatore Sezione (Presente solo nella prima schermata) */}
@@ -1406,17 +1481,6 @@ export default function GuestPortal({
             {/* I pulsanti rapidi sono stati rimossi dall'home page come richiesto */}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className="relative p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors cursor-pointer group shadow-2xs"
-              title="Assistenza online con Valeria Concierge"
-              aria-label="Assistenza online con Valeria Concierge"
-            >
-              <MessageCircle className="w-5 h-5 text-emerald-700" />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />
-            </button>
-          </div>
         </div>
 
         {/* Barra di Stato Sezione Attiva */}
@@ -1689,9 +1753,12 @@ export default function GuestPortal({
           </div>
 
           {rsvpSavedSuccess && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span><strong>RSVP e preferenze salvate con successo!</strong> Gli sposi e il concierge dell'agenzia sono stati aggiornati.</span>
+            <div className="p-5 bg-gradient-to-r from-emerald-50 to-emerald-100 border-2 border-emerald-500 rounded-2xl text-xs text-emerald-950 flex items-center gap-3 shadow-md animate-fade-in">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+              <div>
+                <strong className="block text-sm text-emerald-900 mb-0.5">🎉 Grazie di cuore! Conferma di presenza (RSVP) salvata con successo.</strong>
+                <span>Le tue preferenze alimentari, il nucleo familiare e la conferma sono state trasmesse con successo agli sposi e all'agenzia.</span>
+              </div>
             </div>
           )}
 
@@ -2203,6 +2270,8 @@ export default function GuestPortal({
       {/* ========================================================================= */}
       {activeTab === 'hotels' && (
         <div className="border border-neutral-200 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-6">
+          {renderBookingHeaderNav('hotels')}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-serif-luxury font-bold text-stone-800">
@@ -2592,6 +2661,8 @@ export default function GuestPortal({
       {/* ========================================================================= */}
       {activeTab === 'transfers' && (
         <div className="border border-neutral-200 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-6">
+          {renderBookingHeaderNav('transfers')}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-serif-luxury font-bold text-stone-800">
@@ -2672,27 +2743,167 @@ export default function GuestPortal({
                 })}
               </div>
 
-              {/* Taxi Privato / Request Quote */}
+              {/* Taxi Privato / Noleggio con Conducente (NCC) & Auto d'Epoca */}
               <div 
-                onClick={() => setIsRequestingTaxi(!isRequestingTaxi)}
-                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isRequestingTaxi ? 'border-stone-700 bg-neutral-50/60' : 'border-neutral-200 hover:border-neutral-300'}`}
+                className={`p-5 rounded-2xl border-2 transition-all shadow-xs ${
+                  isRequestingTaxi 
+                    ? 'border-amber-600/80 bg-gradient-to-br from-amber-50/70 via-white to-stone-50 ring-1 ring-amber-500/20' 
+                    : 'border-neutral-200 bg-white hover:border-neutral-300'
+                }`}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-sm font-semibold text-stone-800">Taxi Privato (Auto d'epoca / Personalizzato)</h3>
-                  <span className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 ${isRequestingTaxi ? 'border-stone-700 bg-stone-750 text-white' : 'border-neutral-300'}`}>
-                      {isRequestingTaxi && <Check className="w-3.5 h-3.5" />}
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-300">
+                        Servizio Esclusivo con Autista &amp; Auto d'Epoca
+                      </span>
+                      {isRequestingTaxi && (
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                          ✓ Richiesta Selezionata
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-bold text-stone-900">
+                      Taxi Privato / NCC Personalizzato (Auto d'epoca, Minivan o Berlina)
+                    </h3>
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      Hai bisogno di un transfer dedicato fuori dagli orari delle navette, di un'auto d'epoca o di un minivan privato per il tuo gruppo?
+                    </p>
+                  </div>
+
+                  {/* Pulsante Attiva / Disattiva selezione */}
+                  <button
+                    type="button"
+                    onClick={() => setIsRequestingTaxi(!isRequestingTaxi)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-2 ${
+                      isRequestingTaxi
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
+                        : 'bg-stone-100 hover:bg-stone-200 text-stone-800 border border-neutral-300'
+                    }`}
+                  >
+                    <span>{isRequestingTaxi ? 'Selezionato' : 'Seleziona Servizio'}</span>
+                    <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${isRequestingTaxi ? 'bg-white text-amber-700 border-white' : 'border-neutral-400'}`}>
+                      {isRequestingTaxi && <Check className="w-3 h-3 stroke-[3]" />}
+                    </span>
+                  </button>
                 </div>
+
+                {/* Dettagli della Richiesta Taxi Privato (stopPropagation evita chiusure accidentali al click o alla digitazione) */}
                 {isRequestingTaxi && (
-                  <div className="mt-3 pt-3 border-t border-neutral-200">
-                    <p className="text-xs text-amber-800 font-semibold mb-2 italic">Richiesta quotazione (a partire da...)</p>
-                    <input 
-                      type="text" 
-                      value={taxiDetails}
-                      onChange={(e) => setTaxiDetails(e.target.value)}
-                      placeholder="Descrivi la tipologia di auto o il servizio richiesto..."
-                      className="w-full p-2 text-xs border border-neutral-300 rounded-lg"
-                    />
+                  <div 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="mt-4 pt-4 border-t border-amber-200/80 space-y-4 animate-fade-in"
+                  >
+                    <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-950 flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-bold">Richiesta quotazione riservata senza impegno</strong>
+                        <span className="text-[11px] text-amber-900">
+                          Valeria Concierge verificherà la disponibilità del veicolo desiderato con i fornitori partner e ti invierà la tariffa agevolata e le modalità di conferma.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Tipologia Veicolo Desiderato:
+                        </label>
+                        <select
+                          value={taxiVehicleType}
+                          onChange={(e) => setTaxiVehicleType(e.target.value)}
+                          className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl font-medium text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20"
+                        >
+                          <option value="Auto d'epoca / Vintage Cabrio">Auto d'epoca / Vintage Cabrio (Arrivo scenografico)</option>
+                          <option value="Mercedes Minivan NCC (fino a 8 passeggeri)">Mercedes Minivan NCC (fino a 8 posti per piccoli gruppi)</option>
+                          <option value="Mercedes Berlina Luxury NCC (1-3 passeggeri)">Mercedes Berlina Luxury NCC (VIP Executive)</option>
+                          <option value="Taxi Privato Standard">Taxi Privato Standard</option>
+                          <option value="Altro Veicolo Speciale">Altro Veicolo Speciale (Specifica nelle note)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Numero Passeggeri Previsti:
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            max={16}
+                            value={taxiPassengersCount}
+                            onChange={(e) => setTaxiPassengersCount(Math.max(1, Number(e.target.value)))}
+                            className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl font-mono text-stone-800 focus:outline-hidden"
+                          />
+                          <span className="text-xs text-stone-500 shrink-0">persone</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Luogo di Partenza:
+                        </label>
+                        <input
+                          type="text"
+                          value={taxiPickupLocation}
+                          onChange={(e) => setTaxiPickupLocation(e.target.value)}
+                          placeholder="Es. Aeroporto di Bari (BRI) o Stazione Fasano"
+                          className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl text-stone-800 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Destinazione Desiderata:
+                        </label>
+                        <input
+                          type="text"
+                          value={taxiDestinationLocation}
+                          onChange={(e) => setTaxiDestinationLocation(e.target.value)}
+                          placeholder="Es. Masseria San Domenico / Borgo Egnazia"
+                          className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl text-stone-800 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Data &amp; Orario Indicativo:
+                        </label>
+                        <input
+                          type="text"
+                          value={taxiTime}
+                          onChange={(e) => setTaxiTime(e.target.value)}
+                          placeholder="Es. 11 Settembre 2026 alle ore 14:30"
+                          className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl text-stone-800 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Riferimento Volo / Treno (Opzionale):
+                        </label>
+                        <input
+                          type="text"
+                          value={flightNumber}
+                          onChange={(e) => setFlightNumber(e.target.value)}
+                          placeholder="Es. Ryanair FR7082"
+                          className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl text-stone-800 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-stone-800 font-bold mb-1">
+                          Dettagli Aggiuntivi, Bagagli o Preferenze Speciali:
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={taxiDetails}
+                          onChange={(e) => setTaxiDetails(e.target.value)}
+                          placeholder="Es. Abbiamo 3 valigie grandi, seggiolino per bimbo richiesto, gradito autista parlante inglese..."
+                          className="w-full p-2.5 text-xs bg-white border border-neutral-300 rounded-xl text-stone-800 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2768,6 +2979,8 @@ export default function GuestPortal({
       {/* ========================================================================= */}
       {activeTab === 'experiences' && (
         <div className="border border-neutral-200 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-6">
+          {renderBookingHeaderNav('experiences')}
+
           <div>
             <h2 className="text-xl font-serif-luxury font-bold text-stone-800">
               Esperienze, Tour & Eventi Conviviali
@@ -2900,6 +3113,8 @@ export default function GuestPortal({
       {/* ========================================================================= */}
       {activeTab === 'services' && (
         <div className="border border-neutral-200 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-6">
+          {renderBookingHeaderNav('services')}
+
           <div>
             <h2 className="text-xl font-serif-luxury font-bold text-stone-800">
               Servizi di Bellezza, Styling & Assistenza
@@ -2996,6 +3211,8 @@ export default function GuestPortal({
       {/* ========================================================================= */}
       {activeTab === 'wishes' && (
         <div className="border border-neutral-200 rounded-2xl p-6 sm:p-8 bg-white shadow-xs space-y-6">
+          {renderBookingHeaderNav('wishes')}
+
           <div className="max-w-xl">
             <span className="text-xs font-semibold uppercase tracking-wider text-amber-700">
               Bespoke Puglia Experience
@@ -4744,6 +4961,345 @@ export default function GuestPortal({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODALE CONFERMA E RINGRAZIAMENTO SALVATAGGIO RSVP & NUCLEO FAMILIARE       */}
+      {/* ========================================================================= */}
+      {showRsvpThankYouModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in"
+          onClick={() => setShowRsvpThankYouModal(false)}
+        >
+          <div 
+            className="max-w-lg w-full bg-white rounded-3xl overflow-hidden shadow-2xl border-2 border-stone-200 relative animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header celebrativo */}
+            <div className="p-6 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 text-white relative">
+              <button
+                type="button"
+                onClick={() => setShowRsvpThankYouModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Chiudi"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center shadow-lg font-bold shrink-0">
+                  <Heart className="w-6 h-6 fill-stone-950 text-stone-950" />
+                </div>
+                <div>
+                  <span className="text-[11px] uppercase font-bold tracking-widest text-amber-300">
+                    Conferma Registrata con Successo
+                  </span>
+                  <h3 className="text-xl font-serif-luxury font-bold text-white mt-0.5">
+                    Grazie di Cuore per la Tua Risposta!
+                  </h3>
+                </div>
+              </div>
+              <p className="text-xs text-stone-300 mt-2.5 leading-relaxed">
+                Le tue indicazioni per le nozze di <strong className="text-white">{weddingData.coupleNames}</strong> sono state salvate e comunicate alla centrale operativa di Valeria Concierge e alla cucina dell'evento.
+              </p>
+            </div>
+
+            {/* Riepilogo Dati Trasmessi */}
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto text-xs">
+              {/* Esito Presenza */}
+              <div className="p-3.5 rounded-2xl border flex items-center gap-3 bg-emerald-50 border-emerald-200 text-emerald-950">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                <div>
+                  <strong className="block text-sm text-emerald-900">
+                    {rsvpStatus === 'CONFIRMED' ? 'Presenza Confermata con Gioia!' : 'Comunicata Impossibilità a Partecipare'}
+                  </strong>
+                  <span className="text-[11px] text-emerald-800">
+                    {rsvpStatus === 'CONFIRMED' 
+                      ? `Ci vediamo a ${weddingData.venue} (${weddingData.city}) il ${new Date(weddingData.weddingDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}!` 
+                      : 'Gli sposi hanno ricevuto il tuo messaggio con tutto il loro affetto.'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Dettagli Ospite Principale */}
+              <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-stone-900 text-xs">Ospite Principale:</span>
+                  <span className="font-semibold text-stone-800">{primaryGuestFullName || guestInfo.name}</span>
+                </div>
+                {primaryGuestPhone && (
+                  <div className="flex items-center justify-between text-[11px] text-stone-600">
+                    <span>Recapito Telefonico:</span>
+                    <span className="font-mono text-stone-800">{primaryGuestPhone}</span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-stone-200/80">
+                  <span className="block text-[11px] font-bold text-stone-700 mb-1">Scelte &amp; Note Alimentari:</span>
+                  <p className="text-[11px] text-stone-800 bg-white p-2 rounded-xl border border-stone-200">
+                    {dietaryChoices.length > 0 ? dietaryChoices.join(', ') : 'Menu Standard (Nessuna intolleranza)'}
+                    {dietaryDetails ? ` · Dettagli: ${dietaryDetails}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Accompagnatori */}
+              <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-stone-900 text-xs">Nucleo Familiare / Accompagnatori:</span>
+                  <span className="font-semibold text-stone-800">
+                    {companions.length > 0 ? `${companions.length} persone` : 'Nessun accompagnatore extra'}
+                  </span>
+                </div>
+                {companions.length > 0 ? (
+                  <div className="space-y-1.5 pt-1">
+                    {companions.map((c) => (
+                      <div key={c.id} className="p-2 bg-white rounded-xl border border-stone-200 flex items-center justify-between text-[11px]">
+                        <div>
+                          <strong className="text-stone-800">{c.name}</strong>
+                          <span className="text-stone-500 ml-1.5">({c.relationship || 'Accompagnatore'})</span>
+                        </div>
+                        <span className="text-[10px] text-amber-800 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          {c.dietary || 'Standard'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-stone-500 italic">
+                    Partecipazione registrata come singolo ospite.
+                  </p>
+                )}
+              </div>
+
+              {/* Necessità Particolari */}
+              {specialNeeds && (
+                <div className="p-3 bg-amber-50/70 rounded-2xl border border-amber-200 text-xs text-amber-950">
+                  <span className="font-bold block mb-0.5">Note speciali trasmesse all'agenzia:</span>
+                  <p className="italic text-[11px]">{specialNeeds}</p>
+                </div>
+              )}
+
+              {/* Nota rassicurante da Valeria */}
+              <div className="p-3.5 bg-stone-900 text-white rounded-2xl flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                  V
+                </div>
+                <div className="text-[11px] leading-relaxed">
+                  <strong className="block text-amber-300">Valeria Concierge:</strong>
+                  "La tua conferma è al sicuro! Ora puoi scegliere comodamente il tuo hotel convenzionato, prenotare le navette aeroportuali e scoprire le esperienze pugliesi pensate per te."
+                </div>
+              </div>
+            </div>
+
+            {/* Pulsanti Azione */}
+            <div className="p-4 sm:p-5 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowRsvpThankYouModal(false)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-stone-700 hover:bg-stone-200 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Chiudi
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRsvpThankYouModal(false);
+                  setActiveTab('hotels');
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>Prosegui con Hotel &amp; Transfer</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* FLOATING CHAT WIDGET (VALERIA CONCIERGE) - SPOSTABILE E CHIUDIBILE        */}
+      {/* ========================================================================= */}
+      {/* Linguetta discreta laterale se la chat è stata chiusa/minimizzata */}
+      {isFloatingChatDismissed && (
+        <div className="fixed right-0 bottom-24 z-50 animate-fade-in">
+          <button
+            type="button"
+            onClick={() => setIsFloatingChatDismissed(false)}
+            className="bg-stone-900 hover:bg-black text-amber-300 border-l border-y border-amber-400/60 px-2.5 py-3 rounded-l-2xl shadow-2xl flex flex-col items-center gap-1.5 transition-all cursor-pointer group hover:pl-3.5"
+            title="Riapri l'assistenza chat con Valeria Concierge"
+          >
+            <div className="relative">
+              <MessageCircle className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -top-1 -right-1 animate-pulse" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-200 [writing-mode:vertical-rl] rotate-180">
+              Chat Concierge
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Widget Fluttuante Principale (Visibile se non dismissed) */}
+      {!isFloatingChatDismissed && (
+        <div 
+          className={`fixed z-50 flex flex-col items-end transition-all duration-300 ${
+            floatingChatPosition === 'top' 
+              ? 'top-20 right-4 sm:right-6' 
+              : floatingChatPosition === 'middle' 
+                ? 'top-1/2 -translate-y-1/2 right-4 sm:right-6' 
+                : 'bottom-6 right-4 sm:right-6'
+          }`}
+        >
+          {isFloatingChatOpen ? (
+            <div className="w-85 sm:w-96 bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col h-[500px] max-h-[85vh] animate-scale-up">
+              {/* Header Chat con pulsanti Sposta e Chiudi */}
+              <div className="p-3.5 bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-emerald-700 border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-white">
+                    V
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold block text-white">Valeria Concierge</span>
+                    <span className="text-[10px] text-emerald-300 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      Online · AD Marketing Puglia
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {/* Pulsante Sposta Posizione (In alto / Centro / In basso) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFloatingChatPosition(prev => prev === 'bottom' ? 'middle' : prev === 'middle' ? 'top' : 'bottom');
+                    }}
+                    className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-stone-200 hover:text-white text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    title={`Sposta posizione della chat (Attuale: ${floatingChatPosition === 'bottom' ? 'Basso' : floatingChatPosition === 'middle' ? 'Centro' : 'Alto'})`}
+                  >
+                    <span>Sposta</span>
+                  </button>
+
+                  {/* Minimizza */}
+                  <button
+                    type="button"
+                    onClick={() => setIsFloatingChatOpen(false)}
+                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                    title="Minimizza chat"
+                  >
+                    <span className="font-bold text-xs leading-none">−</span>
+                  </button>
+
+                  {/* Chiudi / Nascondi se non serve */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFloatingChatOpen(false);
+                      setIsFloatingChatDismissed(true);
+                    }}
+                    className="w-7 h-7 rounded-lg bg-white/10 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                    title="Chiudi e nascondi chat (riapribile dalla linguetta a destra)"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Area Messaggi */}
+              <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5 bg-neutral-50 text-xs">
+                {guestChatHistory.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-400 space-y-2">
+                    <MessageCircle className="w-8 h-8 mx-auto text-emerald-600/60" />
+                    <p className="font-semibold text-stone-700">Scrivi a Valeria Concierge</p>
+                    <p className="text-[11px] text-neutral-500 max-w-[240px] mx-auto">
+                      Hai domande su hotel, trasferimenti, desideri o programma? Valeria risponderà in tempo reale.
+                    </p>
+                  </div>
+                ) : (
+                  guestChatHistory.map((m, idx) => {
+                    const isGuest = m.sender === 'guest';
+                    const isCouple = m.sender === 'couple';
+                    return (
+                      <div key={m.id || idx} className={`flex ${isGuest ? 'justify-end' : 'justify-start'} mt-2`}>
+                        <div className={`max-w-[85%] rounded-2xl p-2.5 text-xs shadow-2xs space-y-1 ${
+                          isGuest ? 'bg-stone-800 text-white rounded-br-none' :
+                          isCouple ? 'bg-rose-50 border border-rose-200 text-rose-950 rounded-bl-none' :
+                          'bg-white border border-neutral-200 text-stone-800 rounded-bl-none'
+                        }`}>
+                          <div className={`text-[9px] font-semibold ${isGuest ? 'text-neutral-300' : isCouple ? 'text-rose-700' : 'text-emerald-700'}`}>
+                            {isGuest ? 'Tu' : isCouple ? `Sposi (${weddingData.coupleNames})` : 'Valeria Concierge'}
+                          </div>
+                          <p className="leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                          <div className={`text-[8px] text-right pt-0.5 ${isGuest ? 'text-neutral-300' : 'text-neutral-400'}`}>
+                            {m.timestamp}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Form invio */}
+              <form onSubmit={handleSendChat} className="p-2.5 border-t border-neutral-200 bg-white flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newChatMessage}
+                  onChange={(e) => setNewChatMessage(e.target.value)}
+                  placeholder="Scrivi un messaggio a Valeria..."
+                  className="flex-1 text-xs p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl focus:outline-hidden focus:bg-white"
+                />
+                <button
+                  type="submit"
+                  className="p-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl cursor-pointer transition-colors shadow-xs"
+                  title="Invia messaggio"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 p-1 bg-stone-900/90 rounded-full shadow-2xl border-2 border-amber-300/80 backdrop-blur-xs">
+              {/* Pulsante principale chat */}
+              <button
+                type="button"
+                onClick={() => setIsFloatingChatOpen(true)}
+                className="flex items-center gap-2 pl-3 pr-4 py-2 text-white transition-all cursor-pointer group"
+                title="Apri Assistenza Chat con Valeria"
+              >
+                <div className="relative">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 ring-2 ring-stone-900 animate-pulse" />
+                  <MessageCircle className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
+                </div>
+                <span className="text-xs font-bold font-serif-luxury text-amber-200">
+                  Assistenza Valeria
+                </span>
+              </button>
+
+              {/* Pulsante rapido per spostare la posizione */}
+              <button
+                type="button"
+                onClick={() => {
+                  setFloatingChatPosition(prev => prev === 'bottom' ? 'middle' : prev === 'middle' ? 'top' : 'bottom');
+                }}
+                className="px-2 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white text-[10px] transition-colors cursor-pointer"
+                title={`Sposta pulsante chat in ${floatingChatPosition === 'bottom' ? 'Centro' : floatingChatPosition === 'middle' ? 'Alto' : 'Basso'}`}
+              >
+                ↕ Sposta
+              </button>
+
+              {/* Pulsante rapido per chiudere/nascondere se non serve */}
+              <button
+                type="button"
+                onClick={() => setIsFloatingChatDismissed(true)}
+                className="p-1.5 rounded-full bg-white/10 hover:bg-rose-600 text-stone-300 hover:text-white transition-colors cursor-pointer mr-0.5"
+                title="Chiudi / Nascondi chat se non serve"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
