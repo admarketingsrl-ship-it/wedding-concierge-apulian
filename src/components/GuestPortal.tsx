@@ -1386,8 +1386,9 @@ export default function GuestPortal({
 
   return (
     <div className="space-y-6">
-      {/* Banner Intestazione Ospite & Indicatore Sezione */}
-      <div className="border border-stone-200/90 rounded-3xl p-6 sm:p-8 bg-white shadow-xs space-y-5">
+      {/* Banner Intestazione Ospite & Indicatore Sezione (Presente solo nella prima schermata) */}
+      {activeTab === 'couple-info' && (
+        <div className="border border-stone-200/90 rounded-3xl p-6 sm:p-8 bg-white shadow-xs space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 uppercase tracking-wider">
@@ -1495,6 +1496,7 @@ export default function GuestPortal({
           </div>
         )}
       </div>
+      )}
 
       {/* ========================================================================= */}
       {/* SEZIONE 0: DAGLI SPOSI (FOTO, TIMELINE, DRESS CODE & GUIDA VIAGGIO)      */}

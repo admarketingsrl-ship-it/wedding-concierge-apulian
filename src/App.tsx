@@ -1915,7 +1915,7 @@ export default function App() {
                 <span className="w-4 h-0.5 bg-amber-300 rounded-full transition-transform duration-200 group-hover:w-4" />
               </div>
               <span className="font-serif-luxury font-semibold text-xs tracking-wider uppercase text-amber-200">
-                Menu
+                {currentView === 'guest' ? 'Servizi e Info' : 'Menu'}
               </span>
             </button>
           </div>
