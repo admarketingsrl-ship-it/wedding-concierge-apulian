@@ -1403,35 +1403,18 @@ export default function GuestPortal({
               Sei invitato alle nozze di <strong className="text-stone-900">{weddingData.coupleNames}</strong> a {weddingData.venue} ({weddingData.city}).
             </p>
 
-            {/* Due pulsanti rapidi richiesti dall'utente */}
-            <div className="flex flex-wrap items-center gap-3 pt-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab('rsvp')}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>Servizi e Prenotazioni</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('couple-info')}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs shadow-2xs border border-amber-300 transition-all cursor-pointer"
-              >
-                <Info className="w-4 h-4 text-amber-800" />
-                <span>Informazioni Utili e Assistenza</span>
-              </button>
-            </div>
+            {/* I pulsanti rapidi sono stati rimossi dall'home page come richiesto */}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setActiveTab('chat')}
-              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
+              className="relative p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors cursor-pointer group shadow-2xs"
+              title="Assistenza online con Valeria Concierge"
+              aria-label="Assistenza online con Valeria Concierge"
             >
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Valeria Concierge · Online</span>
+              <MessageCircle className="w-5 h-5 text-emerald-700" />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />
             </button>
           </div>
         </div>
