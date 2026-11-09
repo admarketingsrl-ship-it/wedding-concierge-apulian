@@ -328,6 +328,47 @@ export interface AdminSettings {
   customExperienceCategories: string[];
   customTransferTypes: string[];
   customServiceCategories: string[];
+
+  // 7. Onboarding Sposi & Template Invito
+  onboardingInviteTextIt?: string;
+  onboardingInviteTextEn?: string;
+  customOnboardingUrl?: string;
+}
+
+export interface CoupleOnboardingDossier {
+  id: string;
+  submittedAt: string;
+  status: 'NEW' | 'REVIEWED' | 'CONVERTED';
+  // Dati Coppia
+  brideName: string;
+  groomName: string;
+  coupleEmail: string;
+  phoneWhatsapp: string;
+  residenceCityCountry: string;
+  preferredLanguage: 'it' | 'en';
+  // Evento
+  weddingDate: string;
+  eventDuration: 'SINGLE_DAY' | 'WEEKEND_2DAYS' | 'MULTIDAY_3PLUS';
+  datesDetails?: string;
+  venueLocation: string;
+  ceremonyTypeAndLocation?: string;
+  weddingPlannerName?: string;
+  // Ospiti & Logistica
+  estimatedGuestsCount: number;
+  outOfTownGuestsCount: number;
+  mainArrivalHubs: string[];
+  hotelAssistanceNeeded: 'YES' | 'NO' | 'PARTIAL';
+  shuttleWeddingDayNeeded: 'YES' | 'NO' | 'MAYBE';
+  airportTransfersNeeded: 'YES' | 'NO' | 'MAYBE';
+  // Servizi & Esperienze desiderate
+  requestedServices: string[];
+  requestedExperiences: string[];
+  // Atmosfera & Note
+  desiredVibe: string;
+  specialNotesForValeria: string;
+  kickoffCallChannel: 'WHATSAPP' | 'MEET' | 'PHONE';
+  kickoffCallTime: 'MORNING' | 'AFTERNOON' | 'EVENING';
+  convertedWeddingCode?: string;
 }
 
 export interface ScheduleEvent {
@@ -473,8 +514,87 @@ export const INITIAL_ADMIN_SETTINGS: AdminSettings = {
   footerDisclaimer: 'AD Marketing S.r.l.s. opera con sede a Palagianello (TA) come agenzia di concierge, logistica VIP e coordinamento territoriale per luxury destination weddings in Puglia.',
   customExperienceCategories: [],
   customTransferTypes: [],
-  customServiceCategories: []
+  customServiceCategories: [],
+
+  // 7. Onboarding Sposi & Template Invito
+  onboardingInviteTextIt: `Carissimi {NOMI_SPOSI},
+
+Congratulazioni di vero cuore per le vostre nozze in Puglia! 💍✨
+
+Sono Valeria, responsabile del servizio di Apulian Wedding Concierge (AD Marketing). Da oggi siamo al vostro fianco per rendere l'esperienza vostra e dei vostri ospiti indimenticabile, curando ogni aspetto logistico: alloggi convenzionati nelle masserie più belle, transfer aeroportuali NCC, navette per il giorno delle nozze ed esperienze autentiche nella nostra terra.
+
+Per permettermi di configurare la vostra area riservata, avviare i servizi su misura e preparare il Wedding Portal per i vostri invitati, vi chiedo la gentilezza di compilare questo breve questionario di benvenuto (richiede circa 3 minuti):
+
+👉 {LINK_LANDING_PAGE}
+
+Non appena riceverò i vostri dettagli, imposterò il vostro matrimonio e vi contatterò per un caloroso saluto di allineamento e per iniziare insieme questa meravigliosa avventura!
+
+Con affetto e a disposizione per qualsiasi desiderio,
+Valeria · Apulian Wedding Concierge
+📱 WhatsApp: +39 340 1234567
+🌐 AD Marketing S.r.l.s. · Palagianello (TA)`,
+
+  onboardingInviteTextEn: `Dearest {COUPLE_NAMES},
+
+Warmest congratulations on your upcoming wedding in Puglia! 💍✨
+
+I am Valeria, Head of Guest Experience & Concierge at Apulian Wedding Concierge (AD Marketing). We are thrilled to be by your side to make your celebration and your guests' stay completely stress-free, curating room blocks in authentic masserie, airport transfers, wedding day shuttles, and memorable Apulian experiences.
+
+To allow me to configure your private wedding portal and begin tailoring services for you and your guests, please take 3 minutes to fill out our welcome onboarding form:
+
+👉 {LINK_LANDING_PAGE}
+
+As soon as I receive your details, I will set up your portal and reach out for our kickoff call.
+
+With warm regards and excitement for your big day,
+Valeria · Apulian Wedding Concierge
+📱 WhatsApp: +39 340 1234567
+🌐 AD Marketing S.r.l.s. · Puglia, Italy`
 };
+
+export const INITIAL_ONBOARDING_DOSSIERS: CoupleOnboardingDossier[] = [
+  {
+    id: 'onboard-demo-1',
+    submittedAt: '2026-11-08T16:45:00.000Z',
+    status: 'NEW',
+    brideName: 'Camilla',
+    groomName: 'Federico',
+    coupleEmail: 'camilla.federico2026@gmail.com',
+    phoneWhatsapp: '+39 333 9876543',
+    residenceCityCountry: 'Milano, Italia',
+    preferredLanguage: 'it',
+    weddingDate: '2026-09-19',
+    eventDuration: 'MULTIDAY_3PLUS',
+    datesDetails: '18 Settembre: Welcome Drink al tramonto a Polignano; 19 Settembre: Cerimonia & Ricevimento a Masseria San Domenico; 20 Settembre: Farewell Pool & Pizza Party.',
+    venueLocation: 'Masseria San Domenico, Savelletri di Fasano (BR)',
+    ceremonyTypeAndLocation: 'Rito civile simbolico nel giardino degli ulivi secolari',
+    weddingPlannerName: 'Elisa Moretti Event Design',
+    estimatedGuestsCount: 110,
+    outOfTownGuestsCount: 85,
+    mainArrivalHubs: ['Aeroporto di Bari Karol Wojtyla (BRI)', 'Aeroporto di Brindisi (BDS)'],
+    hotelAssistanceNeeded: 'YES',
+    shuttleWeddingDayNeeded: 'YES',
+    airportTransfersNeeded: 'YES',
+    requestedServices: [
+      'GUEST_CONCIERGE_CHAT',
+      'WEB_APP_PORTAL',
+      'HOTEL_ROOM_BLOCKS',
+      'WEDDING_SHUTTLES',
+      'AIRPORT_NCC',
+      'BEAUTY_STYLING',
+      'BABYSITTING'
+    ],
+    requestedExperiences: [
+      'BOAT_TOUR_POLIGNANO',
+      'WINE_OIL_TASTING',
+      'COOKING_CLASS_ORECCHIETTE'
+    ],
+    desiredVibe: 'Autentico, elegante e festoso, con tanta musica pugliese, cibo genuino e totale relax per i nostri amici e parenti che viaggiano da lontano.',
+    specialNotesForValeria: 'Abbiamo diversi ospiti che arrivano da Londra e New York con voli su Bari. Ci piacerebbe avere un cartello di benvenuto personalizzato in aeroporto e fare in modo che non debbano noleggiare auto.',
+    kickoffCallChannel: 'WHATSAPP',
+    kickoffCallTime: 'AFTERNOON'
+  }
+];
 
 // Database Master Fornitori Registrati
 export const INITIAL_SUPPLIERS: MasterSupplier[] = [

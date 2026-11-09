@@ -74,12 +74,14 @@ import {
   GuestItem,
   WeddingAlertNotification,
   WeddingAlbumPhoto,
+  CoupleOnboardingDossier,
   getSharedExperiencesDatabase,
   getSavedMasterExperiences,
   saveCustomMasterExperience
 } from '../data/weddingStore';
 import { saveWeddingToFirestore, deleteWeddingFromFirestore } from '../lib/firebase';
 import CatalogSettings from './CatalogSettings';
+import OnboardingInviteSettings from './OnboardingInviteSettings';
 import { 
   exportWeddingToJson, 
   parseWeddingImportJson, 
@@ -112,6 +114,9 @@ export interface AdminPanelProps {
   onLogout: () => void;
   onPreviewAsGuest?: (weddingCode: string) => void;
   onSendGmail?: (options: { to: string; subject: string; body: string }) => Promise<{ success: boolean }>;
+  onboardingDossiers?: CoupleOnboardingDossier[];
+  onUpdateOnboardingDossiers?: (dossiers: CoupleOnboardingDossier[]) => void;
+  onNavigateToOnboarding?: () => void;
 }
 
 export default function AdminPanel({
@@ -133,7 +138,10 @@ export default function AdminPanel({
   onUpdatePaymentRequests,
   onLogout,
   onPreviewAsGuest,
-  onSendGmail
+  onSendGmail,
+  onboardingDossiers = [],
+  onUpdateOnboardingDossiers,
+  onNavigateToOnboarding
 }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<'weddings' | 'hotels' | 'experiences' | 'transfers' | 'services' | 'guests' | 'chat' | 'suppliers' | 'settings' | 'wishlist' | 'payments' | 'catalog' | 'albums'>('weddings');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -239,9 +247,102 @@ export default function AdminPanel({
   };
 
   // Gestione Schermata Impostazioni Avanzate Agenzia
-  const [settingsSubTab, setSettingsSubTab] = useState<'company' | 'team_contacts' | 'banking' | 'branding' | 'features' | 'preview_sync'>('company');
+  const [settingsSubTab, setSettingsSubTab] = useState<'company' | 'team_contacts' | 'banking' | 'branding' | 'features' | 'preview_sync' | 'onboarding_invite'>('onboarding_invite');
   const [settingsForm, setSettingsForm] = useState<AdminSettings>(adminSettings);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<string | null>(null);
+
+  // Conversione dossier onboarding in matrimonio attivo
+  const handleConvertDossierToWedding = (dossier: CoupleOnboardingDossier) => {
+    const cleanB = (dossier.brideName || 'SPOSA').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const cleanG = (dossier.groomName || 'SPOSO').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const year = dossier.weddingDate ? dossier.weddingDate.split('-')[0] : '2026';
+    let baseCode = `${cleanB}-${cleanG}-${year}`;
+    
+    if (weddings.some(w => (w.weddingCode || '').toUpperCase() === baseCode)) {
+      baseCode = `${baseCode}-${Math.floor(Math.random() * 90 + 10)}`;
+    }
+
+    const coupleNames = `${dossier.brideName} & ${dossier.groomName}`;
+    const newWedding: WeddingData = {
+      id: `wed-${Date.now()}`,
+      weddingCode: baseCode,
+      coupleNames: coupleNames,
+      coupleEmail: dossier.coupleEmail,
+      couplePhone: dossier.phoneWhatsapp,
+      weddingDate: dossier.weddingDate || '2026-09-20',
+      venue: dossier.venueLocation || 'Masseria in Puglia',
+      city: dossier.venueLocation?.includes('Fasano') ? 'Fasano (BR)' : dossier.venueLocation?.includes('Monopoli') ? 'Monopoli (BA)' : 'Puglia',
+      country: 'Italia',
+      bannerImage: '',
+      welcomeMessage: `Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.`,
+      currency: 'EUR',
+      conciergeEmail: adminSettings.adminNotificationEmail || 'info@admarketing.it',
+      conciergePhone: adminSettings.valeriaPhone || '+39 340 1234567',
+      conciergeWhatsApp: adminSettings.valeriaPhone || '+39 340 1234567',
+      dressCode: 'Abito elegante / Puglia Chic tra gli ulivi',
+      story: `Sposi in Puglia a ${dossier.venueLocation || 'Masseria'}. ${dossier.desiredVibe || ''}`,
+      hotels: [],
+      transfers: [],
+      experiences: [],
+      extraServices: [],
+      guests: [],
+      schedule: [
+        {
+          id: `sch-${Date.now()}-1`,
+          time: '17:30',
+          title: 'Cerimonia Ufficiale',
+          location: dossier.ceremonyTypeAndLocation || dossier.venueLocation || 'Masseria',
+          description: 'Accoglienza ospiti e rito'
+        },
+        {
+          id: `sch-${Date.now()}-2`,
+          time: '19:30',
+          title: 'Aperitivo & Ricevimento Pugliese',
+          location: dossier.venueLocation || 'Masseria',
+          description: 'Cena tipica sotto le luminarie pugliesi e festa'
+        }
+      ],
+      galleryPhotos: [],
+      weddingAlbumPhotos: [],
+      secondaryInfo: [
+        {
+          id: `sec-${Date.now()}-1`,
+          title: 'Logistica & Transfer',
+          category: 'logistics',
+          content: `Aeroporti consigliati: ${(dossier.mainArrivalHubs || []).join(', ') || 'Bari e Brindisi'}. Valeria organizza le navette per tutti i trasferimenti.`
+        }
+      ],
+      broadcastAnnouncements: [],
+      giftRequests: [],
+      notifications: [
+        {
+          id: `alert-${Date.now()}`,
+          weddingCode: baseCode,
+          source: 'COUPLE_UPDATE',
+          authorName: coupleNames,
+          authorRole: 'sposi',
+          title: `Nuovo Matrimonio creato da questionario onboarding!`,
+          description: `Compilato da ${coupleNames}. Contatto: ${dossier.phoneWhatsapp}`,
+          timestamp: `Oggi, ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`,
+          read: false,
+          actionTab: 'weddings'
+        }
+      ]
+    };
+
+    onUpdateWeddings([newWedding, ...weddings]);
+    saveWeddingToFirestore(newWedding).catch(() => {});
+
+    if (onUpdateOnboardingDossiers) {
+      const updated = onboardingDossiers.map(d =>
+        d.id === dossier.id ? { ...d, status: 'CONVERTED' as const, convertedWeddingCode: baseCode } : d
+      );
+      onUpdateOnboardingDossiers(updated);
+    }
+
+    setAlertActionToast(`Matrimonio ${baseCode} (${coupleNames}) creato con successo dal dossier!`);
+    setTimeout(() => setAlertActionToast(null), 5000);
+  };
 
   // Gestione Segnalazioni & Feedback di Avviso Matrimoni
   const [weddingAlertFilter, setWeddingAlertFilter] = useState<'ALL' | 'ALERTS_ONLY' | 'WITH_GUESTS'>('ALL');
@@ -4097,6 +4198,9 @@ export default function AdminPanel({
               setSettingsForm(updated);
               onUpdateAdminSettings(updated);
             }} 
+            onboardingDossiers={onboardingDossiers}
+            onConvertDossierToWedding={handleConvertDossierToWedding}
+            onOpenLandingPreview={() => onNavigateToOnboarding?.()}
           />
         )}
 
@@ -4121,11 +4225,20 @@ export default function AdminPanel({
                   <span>Impostazioni &amp; Personalizzazione Web App</span>
                 </h2>
                 <p className="text-xs text-neutral-500 max-w-2xl mt-1">
-                  Configura i dati societari ufficiali, il team di accoglienza Valeria, le coordinate bancarie per bonifici e Stripe, lo stile grafico del portale e i moduli attivi per gli ospiti e gli sposi.
+                  Configura il link d'invito e onboarding per gli sposi, i dati societari ufficiali, il team di accoglienza Valeria, le coordinate bancarie per bonifici e Stripe e lo stile grafico del portale.
                 </p>
               </div>
 
               <div className="flex items-center gap-2.5 self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setSettingsSubTab('onboarding_invite')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-amber-500/20 text-amber-900 border border-amber-300 font-bold text-xs hover:bg-amber-500/30 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Link Invito Sposi</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleSaveSettings}
@@ -4157,12 +4270,13 @@ export default function AdminPanel({
             {/* Barra Navigazione Sub-Tabs Impostazioni */}
             <div className="bg-white rounded-xl border border-neutral-200 p-1.5 shadow-2xs flex flex-wrap gap-1.5">
               {[
-                { id: 'company', label: '1. Società & Legale', icon: Landmark, desc: 'Dati fiscali, P.IVA, sede' },
-                { id: 'team_contacts', label: '2. Team & Valeria', icon: Phone, desc: 'WhatsApp H24, email' },
-                { id: 'banking', label: '3. Banca & IBAN', icon: CreditCard, desc: 'Conto, BIC, Stripe' },
-                { id: 'branding', label: '4. Stile Grafico', icon: Palette, desc: 'Palette Puglia, font, card' },
-                { id: 'features', label: '5. Moduli & Portali', icon: Settings2, desc: 'Switch, desideri, valuta' },
-                { id: 'preview_sync', label: '6. Anteprima Materiali', icon: Eye, desc: 'Simulatore voucher e footer' }
+                { id: 'onboarding_invite', label: '1. Invito Sposi & Landing Page', icon: Sparkles, desc: 'Link e messaggio WhatsApp per Valeria' },
+                { id: 'company', label: '2. Società & Legale', icon: Landmark, desc: 'Dati fiscali, P.IVA, sede' },
+                { id: 'team_contacts', label: '3. Team & Valeria', icon: Phone, desc: 'WhatsApp H24, email' },
+                { id: 'banking', label: '4. Banca & IBAN', icon: CreditCard, desc: 'Conto, BIC, Stripe' },
+                { id: 'branding', label: '5. Stile Grafico', icon: Palette, desc: 'Palette Puglia, font, card' },
+                { id: 'features', label: '6. Moduli & Portali', icon: Settings2, desc: 'Switch, desideri, valuta' },
+                { id: 'preview_sync', label: '7. Anteprima Materiali', icon: Eye, desc: 'Simulatore voucher e footer' }
               ].map(sub => {
                 const Icon = sub.icon;
                 const isActive = settingsSubTab === sub.id;
@@ -5161,6 +5275,19 @@ export default function AdminPanel({
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* SUB-TAB 7: INVITO SPOSI, LANDING PAGE & MESSAGGIO PER VALERIA     */}
+            {/* ================================================================= */}
+            {settingsSubTab === 'onboarding_invite' && (
+              <OnboardingInviteSettings 
+                settings={adminSettings}
+                onUpdateSettings={onUpdateAdminSettings}
+                onboardingDossiers={onboardingDossiers}
+                onConvertDossierToWedding={handleConvertDossierToWedding}
+                onOpenLandingPreview={() => onNavigateToOnboarding?.()}
+              />
             )}
           </div>
         )}

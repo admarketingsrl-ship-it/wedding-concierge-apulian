@@ -1379,15 +1379,84 @@ app.post('/api/wishes', (req, res) => {
   }
 });
 
-// PUT /api/wishes/bulk - Aggiornamento elenco desideri dall'agenzia
-app.put('/api/wishes/bulk', (req, res) => {
+// ==============================================================================
+// 6.5. ONBOARDING SPOSI & QUESTIONARIO KICKOFF (VALERIA & AD MARKETING)
+// ==============================================================================
+// GET /api/onboarding - Lettura di tutti i dossier di onboarding inviati dagli sposi
+app.get('/api/onboarding', (req, res) => {
   try {
-    const { wishes } = req.body;
-    if (Array.isArray(wishes)) {
-      saveJsonFile('wish_requests.json', wishes);
-      return res.status(200).json({ success: true, wishes });
+    const list = loadJsonFile('onboarding.json', []);
+    return res.status(200).json({ success: true, count: list.length, dossiers: list });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/onboarding - Ricezione nuovo questionario compilato dalla sposa/coppia
+app.post('/api/onboarding', (req, res) => {
+  try {
+    const dossier = req.body;
+    if (!dossier || (!dossier.brideName && !dossier.groomName)) {
+      return res.status(400).json({ success: false, message: 'Dati sposi incompleti' });
     }
-    return res.status(400).json({ success: false, message: 'Formato desideri non valido' });
+
+    const currentList = loadJsonFile('onboarding.json', []);
+    const newDossier = {
+      id: dossier.id || `onboarding-${Date.now()}`,
+      submittedAt: dossier.submittedAt || new Date().toISOString(),
+      status: dossier.status || 'NEW',
+      ...dossier
+    };
+
+    const updatedList = [newDossier, ...currentList.filter(d => d.id !== newDossier.id)];
+    saveJsonFile('onboarding.json', updatedList);
+
+    // Registra nel log di audit dell'agenzia
+    try {
+      const logs = loadJsonFile('audit_logs.json', []);
+      logs.unshift({
+        id: `log-${Date.now()}`,
+        action: 'COUPLE_ONBOARDING_RECEIVED',
+        details: `Ricevuto questionario onboarding per ${newDossier.brideName} & ${newDossier.groomName} (${newDossier.venueLocation || 'Puglia'})`,
+        author: 'Sposi (Landing Onboarding)',
+        timestamp: new Date().toISOString()
+      });
+      saveJsonFile('audit_logs.json', logs.slice(0, 100));
+    } catch {}
+
+    return res.status(201).json({ success: true, dossier: newDossier });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/onboarding/:id - Aggiornamento stato dossier (es. REVIEWED, CONVERTED)
+app.put('/api/onboarding/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const currentList = loadJsonFile('onboarding.json', []);
+    const idx = currentList.findIndex(d => d.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ success: false, message: 'Dossier onboarding non trovato' });
+    }
+
+    currentList[idx] = { ...currentList[idx], ...updates, updatedAt: new Date().toISOString() };
+    saveJsonFile('onboarding.json', currentList);
+    return res.status(200).json({ success: true, dossier: currentList[idx] });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/onboarding/:id - Rimozione dossier onboarding
+app.delete('/api/onboarding/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentList = loadJsonFile('onboarding.json', []);
+    const updated = currentList.filter(d => d.id !== id);
+    saveJsonFile('onboarding.json', updated);
+    return res.status(200).json({ success: true, message: 'Dossier rimosso con successo' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

@@ -54,6 +54,7 @@ import GuestPortal from './components/GuestPortal';
 import SupplierPortal from './components/SupplierPortal';
 import CouplePortal from './components/CouplePortal';
 import AgencyDashboard from './components/AgencyDashboard';
+import CoupleOnboardingLanding from './components/CoupleOnboardingLanding';
 import { 
   INITIAL_WEDDINGS, 
   INITIAL_SUPPLIERS,
@@ -72,7 +73,9 @@ import {
   PaymentRequest,
   AdminSettings,
   HotelItem,
-  WeddingAlertNotification
+  WeddingAlertNotification,
+  CoupleOnboardingDossier,
+  INITIAL_ONBOARDING_DOSSIERS
 } from './data/weddingStore';
 
 
@@ -376,6 +379,87 @@ export default function App() {
 
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>(INITIAL_PAYMENT_REQUESTS);
 
+  // Database Dossier Onboarding Sposi (compilati dalla Landing Page)
+  const [onboardingDossiers, setOnboardingDossiers] = useState<CoupleOnboardingDossier[]>(() => {
+    try {
+      const stored = localStorage.getItem('apulian_onboarding_dossiers_v1');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ONBOARDING_DOSSIERS;
+  });
+
+  // Sincronizzazione permanente locale dei dossier onboarding
+  useEffect(() => {
+    try {
+      localStorage.setItem('apulian_onboarding_dossiers_v1', JSON.stringify(onboardingDossiers));
+    } catch {}
+  }, [onboardingDossiers]);
+
+  // Sincronizzazione con backend Express /api/onboarding
+  const syncOnboardingWithBackend = async () => {
+    try {
+      const res = await fetch('/api/onboarding');
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.dossiers)) {
+          setOnboardingDossiers(prev => {
+            const map = new Map<string, CoupleOnboardingDossier>();
+            data.dossiers.forEach((d: CoupleOnboardingDossier) => map.set(d.id, d));
+            prev.forEach(d => {
+              if (!map.has(d.id)) map.set(d.id, d);
+            });
+            const merged = Array.from(map.values()).sort((a, b) => 
+              (b.submittedAt || '').localeCompare(a.submittedAt || '')
+            );
+            try {
+              localStorage.setItem('apulian_onboarding_dossiers_v1', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    syncOnboardingWithBackend();
+    const interval = setInterval(syncOnboardingWithBackend, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUpdateOnboardingDossiers = (updated: CoupleOnboardingDossier[]) => {
+    setOnboardingDossiers(updated);
+    try {
+      localStorage.setItem('apulian_onboarding_dossiers_v1', JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleSubmitOnboardingDossier = async (dossier: CoupleOnboardingDossier): Promise<boolean> => {
+    const nextList = [dossier, ...onboardingDossiers.filter(d => d.id !== dossier.id)];
+    setOnboardingDossiers(nextList);
+    try {
+      localStorage.setItem('apulian_onboarding_dossiers_v1', JSON.stringify(nextList));
+    } catch {}
+
+    setSyncFeedback(`Nuovo questionario onboarding ricevuto da ${dossier.brideName} & ${dossier.groomName}!`);
+    setTimeout(() => setSyncFeedback(null), 6000);
+
+    try {
+      await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dossier)
+      });
+    } catch (e) {
+      console.warn('Errore salvataggio dossier su server:', e);
+    }
+
+    return true;
+  };
+
   // Stato Autenticazione & Ruolo
   const [authRole, setAuthRole] = useState<'guest' | 'couple' | 'admin' | 'supplier' | null>(null);
   const [lang, setLang] = useState<'it' | 'en'>(
@@ -393,8 +477,8 @@ export default function App() {
   const [currentCoupleWeddingCode, setCurrentCoupleWeddingCode] = useState<string>('CHIARA-MATTEO-2026');
   const [currentSupplierId, setCurrentSupplierId] = useState<string>(INITIAL_SUPPLIERS[0].id);
 
-  // Vista Attiva (Home, Ospite, Sposi, Admin, Fornitore, Dashboard)
-  const [currentView, setCurrentView] = useState<'home' | 'guest' | 'couple' | 'admin' | 'supplier' | 'dashboard'>('home');
+  // Vista Attiva (Home, Ospite, Sposi, Admin, Fornitore, Dashboard, Onboarding)
+  const [currentView, setCurrentView] = useState<'home' | 'guest' | 'couple' | 'admin' | 'supplier' | 'dashboard' | 'onboarding'>('home');
   const [isLateralMenuOpen, setIsLateralMenuOpen] = useState(false);
   const [guestActiveTab, setGuestActiveTab] = useState<'couple-info' | 'rsvp' | 'hotels' | 'transfers' | 'experiences' | 'services' | 'wishes' | 'chat' | 'itinerary' | 'payments' | 'album'>('couple-info');
   const [coupleActiveTab, setCoupleActiveTab] = useState<'details' | 'photos' | 'secondary' | 'gift-services' | 'communication' | 'guests' | 'chat'>('details');
@@ -402,8 +486,20 @@ export default function App() {
   // Modali Informative Legali Footer (AD Marketing Palagianello TA)
   const [activeLegalModal, setActiveLegalModal] = useState<'privacy' | 'cookies' | 'terms' | null>(null);
 
-  // Ripristino Automatico all'avvio usando Sessione salvata
+  // Ripristino Automatico all'avvio usando Sessione salvata o Parametro URL (?view=onboarding)
   useEffect(() => {
+    // 1. Rilevamento Parametro URL per Landing Page Onboarding Sposi (?view=onboarding o ?page=onboarding)
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const viewParam = params.get('view') || params.get('page');
+        if (viewParam === 'onboarding' || window.location.hash === '#onboarding') {
+          setCurrentView('onboarding');
+          return;
+        }
+      }
+    } catch {}
+
     // 2. Ripristino rapido sessione locale memorizzata
     try {
       const savedRaw = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -1832,6 +1928,14 @@ export default function App() {
       });
     }
 
+    // Voce per Questionario & Landing Page Nuove Coppie Sposi
+    homeItems.push({
+      id: 'onboarding',
+      label: 'Landing Onboarding Sposi',
+      subtitle: 'Questionario per nuove nozze con Valeria',
+      icon: <Sparkles className="w-5 h-5 text-amber-500" />
+    });
+
     return {
       items: homeItems,
       title: 'Apulian Concierge',
@@ -1842,6 +1946,20 @@ export default function App() {
       setActiveTab: (tab: any) => setCurrentView(tab)
     };
   };
+
+  // Se la vista richiesta è l'Onboarding Sposi (via link ?view=onboarding inviato da Valeria o menu)
+  if (currentView === 'onboarding') {
+    return (
+      <CoupleOnboardingLanding 
+        adminSettings={adminSettings}
+        onSubmitDossier={handleSubmitOnboardingDossier}
+        onNavigateHome={() => setCurrentView('home')}
+        onPreviewPortal={() => {
+          handlePreviewAsGuest(weddings[0]?.weddingCode || 'CHIARA-MATTEO-2026');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-800 flex flex-col selection:bg-stone-800 selection:text-white">
@@ -2011,6 +2129,7 @@ export default function App() {
             onRegisterHotel={handleRegisterHotel}
             onResetToDemoWedding={handleResetToDemoWedding}
             onWeddingDiscovered={handleWeddingDiscovered}
+            onNavigateToOnboarding={() => setCurrentView('onboarding')}
           />
         )}
 
@@ -2078,6 +2197,9 @@ export default function App() {
             onLogout={handleLogout}
             onPreviewAsGuest={handlePreviewAsGuest}
             onSendGmail={handleSendGmail}
+            onboardingDossiers={onboardingDossiers}
+            onUpdateOnboardingDossiers={handleUpdateOnboardingDossiers}
+            onNavigateToOnboarding={() => setCurrentView('onboarding')}
           />
         )}
 

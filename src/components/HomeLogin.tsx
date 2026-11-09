@@ -58,6 +58,7 @@ interface HomeLoginProps {
   savedSession?: { role: string; name?: string; details?: string } | null;
   onResumeSavedSession?: () => void;
   onClearSavedSession?: () => void;
+  onNavigateToOnboarding?: () => void;
 }
 
 export default function HomeLogin({ 
@@ -72,7 +73,8 @@ export default function HomeLogin({
   onWeddingDiscovered,
   savedSession,
   onResumeSavedSession,
-  onClearSavedSession
+  onClearSavedSession,
+  onNavigateToOnboarding
 }: HomeLoginProps) {
   // Ruolo attivo: 'guest' (esploso come principale di default) oppure 'couple' | 'admin' | 'supplier'
   const [activeRole, setActiveRole] = useState<'guest' | 'couple' | 'admin' | 'supplier'>('guest');
@@ -950,6 +952,33 @@ export default function HomeLogin({
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Box Onboarding Nuove Coppie */}
+          {onNavigateToOnboarding && (
+            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-left space-y-2 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded-md">
+                  Nuove Coppie
+                </span>
+                <Sparkles className="w-4 h-4 text-amber-700" />
+              </div>
+              <div className="text-xs font-bold text-stone-900">
+                Non avete ancora configurato il vostro matrimonio con Valeria?
+              </div>
+              <p className="text-[11px] text-stone-600 leading-relaxed">
+                Se avete scelto di celebrare le nozze in Puglia e volete attivare i servizi di hotel convenzionati, transfer NCC e concierge per i vostri ospiti, compilate la scheda di benvenuto per Valeria.
+              </p>
+              <button
+                type="button"
+                onClick={onNavigateToOnboarding}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-900 hover:bg-amber-950 text-white font-bold text-xs transition-all shadow-2xs cursor-pointer w-full justify-center"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Compila il Questionario Onboarding Sposi</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </section>
       )}
 

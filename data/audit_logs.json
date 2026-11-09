@@ -1,5 +1,12 @@
 [
   {
+    "id": "log-1794245241340",
+    "action": "COUPLE_ONBOARDING_RECEIVED",
+    "details": "Ricevuto questionario onboarding per Camilla & Federico (Masseria San Domenico)",
+    "author": "Sposi (Landing Onboarding)",
+    "timestamp": "2026-11-09T17:27:21.340Z"
+  },
+  {
     "id": "log-1792499007789-0ixi",
     "actorName": "Staff Agenzia",
     "actorRole": "Amministratore",
