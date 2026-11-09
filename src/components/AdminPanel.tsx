@@ -1054,15 +1054,15 @@ export default function AdminPanel({
   };
 
   const handleCopyLink = (code: string) => {
-    const url = `https://concierge-wedding.vercel.app/?code=${code}`;
+    const url = `https://wedding-concierge-apulian.vercel.app/?code=${code}`;
     navigator.clipboard.writeText(url);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const generateWeddingWhatsAppMessage = (w: WeddingData) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://concierge-wedding.vercel.app';
-    const portalUrl = `${origin}/?code=${encodeURIComponent(w.weddingCode)}`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://wedding-concierge-apulian.vercel.app';
+    const portalUrl = `https://wedding-concierge-apulian.vercel.app/?code=${encodeURIComponent(w.weddingCode)}`;
     return encodeURIComponent(
       `✨ *Apulian Wedding Concierge - Benvenuti al Matrimonio di ${w.coupleNames}* ✨\n\n` +
       `Siamo felicissimi di avervi con noi per celebrare il nostro giorno speciale in Puglia!\n\n` +
@@ -1078,10 +1078,9 @@ export default function AdminPanel({
   };
 
   const generateBrideWhatsAppCredentialsMessage = (w: WeddingData) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://concierge-wedding.vercel.app';
     const coupleEmailParam = encodeURIComponent(w.coupleEmail || '');
     const coupleCodeParam = encodeURIComponent(w.weddingCode || '');
-    const portalUrl = `${origin}/?role=couple&code=${coupleCodeParam}&email=${coupleEmailParam}`;
+    const portalUrl = `https://wedding-concierge-apulian.vercel.app/?role=couple&code=${coupleCodeParam}&email=${coupleEmailParam}`;
     return encodeURIComponent(
       `💐 *Gentile ${w.coupleNames}, benvenuti in Apulian Wedding Concierge!* 💐\n\n` +
       `Il vostro matrimonio in Puglia è ora attivo sulla nostra piattaforma esclusiva.\n\n` +

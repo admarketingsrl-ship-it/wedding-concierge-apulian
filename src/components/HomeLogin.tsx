@@ -449,7 +449,7 @@ export default function HomeLogin({
       hotelName: regHotelName.trim(),
       email: cleanEmail,
       password: regHotelPassword.trim(),
-      loginUrl: window.location.origin || 'https://apulianweddingconcierge.it',
+      loginUrl: window.location.origin || 'https://wedding-concierge-apulian.vercel.app',
       bookingEngineUrl: cleanWebsiteUrl,
       sentAt: timestampStr,
       supplierId: newSupplierId

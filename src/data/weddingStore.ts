@@ -517,6 +517,7 @@ export const INITIAL_ADMIN_SETTINGS: AdminSettings = {
   customServiceCategories: [],
 
   // 7. Onboarding Sposi & Template Invito
+  customOnboardingUrl: 'https://wedding-concierge-apulian.vercel.app/?view=onboarding',
   onboardingInviteTextIt: `Carissimi {NOMI_SPOSI},
 
 Congratulazioni di vero cuore per le vostre nozze in Puglia! 💍✨

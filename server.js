@@ -21,7 +21,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+const CLIENT_URL = process.env.CLIENT_URL || 'https://wedding-concierge-apulian.vercel.app';
 
 // ==============================================================================
 // PERSISTENT FILE STORAGE ENGINE (AD MARKETING)

@@ -1235,7 +1235,7 @@ Siamo immensamente felici di invitarvi a celebrare il nostro matrimonio in Pugli
 Per rendere il vostro soggiorno un'esperienza meravigliosa e senza pensieri, abbiamo attivato la piattaforma *Apulian Wedding Concierge*.
 
 📱 *Come accedere:*
-1. Apri la piattaforma: https://concierge-wedding.vercel.app/?code=${weddingData.weddingCode}
+1. Apri la piattaforma: https://wedding-concierge-apulian.vercel.app/?code=${weddingData.weddingCode}
 2. Clicca su *Accesso Ospiti*
 3. Inserisci il nostro Codice Matrimonio: *${weddingData.weddingCode}*
 
@@ -1254,7 +1254,7 @@ We are overjoyed to celebrate our destination wedding in Puglia with you:
 To help you organize your travel smoothly, we have set up the *Apulian Wedding Concierge* platform!
 
 📱 *How to access:*
-1. Visit: https://concierge-wedding.vercel.app/?code=${weddingData.weddingCode}
+1. Visit: https://wedding-concierge-apulian.vercel.app/?code=${weddingData.weddingCode}
 2. Click on *Guest Access*
 3. Enter our Wedding Code: *${weddingData.weddingCode}*
 

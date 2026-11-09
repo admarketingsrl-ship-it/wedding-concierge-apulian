@@ -91,14 +91,20 @@ Valeria · Apulian Wedding Concierge
 🌐 AD Marketing S.r.l.s. · Puglia, Italy`
   );
 
-  // Genera URL dinamico per la landing page onboarding
+  const PRODUCTION_DOMAIN = 'https://wedding-concierge-apulian.vercel.app';
+  const [domainMode, setDomainMode] = useState<'production' | 'current'>('production');
+
+  // Genera URL per la landing page onboarding
   const getLandingPageUrl = (): string => {
+    if (domainMode === 'production') {
+      return `${PRODUCTION_DOMAIN}/?view=onboarding`;
+    }
     if (typeof window !== 'undefined') {
       const origin = window.location.origin;
       const pathname = window.location.pathname;
       return `${origin}${pathname}?view=onboarding`;
     }
-    return 'https://ais-dev-t3buwebnrj6ycc2xjdmvtm-210526230772.europe-west2.run.app/?view=onboarding';
+    return `${PRODUCTION_DOMAIN}/?view=onboarding`;
   };
 
   const landingPageUrl = getLandingPageUrl();
@@ -233,13 +239,52 @@ Valeria · Apulian Wedding Concierge
           </div>
         </div>
 
+        {/* Selettore Dominio */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/10">
+          <div className="flex items-center gap-1.5 text-xs text-stone-300">
+            <span className="text-[11px] text-amber-300 font-semibold uppercase tracking-wider">Dominio di riferimento:</span>
+          </div>
+
+          <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/15 text-xs">
+            <button
+              type="button"
+              onClick={() => setDomainMode('production')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                domainMode === 'production'
+                  ? 'bg-amber-400 text-stone-900 shadow-sm'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              <span>🌐 Produzione (Vercel)</span>
+              {domainMode === 'production' && <Check className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDomainMode('current')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                domainMode === 'current'
+                  ? 'bg-amber-400 text-stone-900 shadow-sm'
+                  : 'text-stone-300 hover:text-white'
+              }`}
+            >
+              <span>💻 Ambiente Locale / Preview</span>
+              {domainMode === 'current' && <Check className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+
         {/* Barra URL con Copia Rapida */}
-        <div className="bg-black/40 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-stone-700/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="bg-black/50 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-amber-400/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-inner">
           <div className="flex items-center gap-2.5 px-2 overflow-hidden">
             <LinkIcon className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="font-mono text-xs text-amber-200 select-all truncate">
-              {landingPageUrl}
-            </span>
+            <div className="truncate">
+              <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-wider">
+                {domainMode === 'production' ? 'Link Ufficiale Vercel' : 'Link Anteprima'}
+              </span>
+              <span className="font-mono text-xs text-amber-200 select-all font-semibold">
+                {landingPageUrl}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
