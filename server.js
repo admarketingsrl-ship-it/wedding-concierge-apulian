@@ -1411,6 +1411,22 @@ app.post('/api/onboarding', (req, res) => {
     const updatedList = [newDossier, ...currentList.filter(d => d.id !== newDossier.id)];
     saveJsonFile('onboarding.json', updatedList);
 
+    // Notifica email a Valeria
+    try {
+      fetch(`http://localhost:${PORT}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'apulianweddingconcierge@gmail.com',
+          subject: `Nuovo Matrimonio da Onboarding - ${newDossier.brideName} & ${newDossier.groomName}`,
+          text: `È stato ricevuto un nuovo dossier di onboarding per ${newDossier.brideName} & ${newDossier.groomName}. Contatto: ${newDossier.phoneWhatsapp}. Venite a controllare nel portale: ${CLIENT_URL}/?view=admin`,
+          html: `<p>È stato ricevuto un nuovo dossier di onboarding per <strong>${newDossier.brideName} & ${newDossier.groomName}</strong>.</p><p>Contatto: ${newDossier.phoneWhatsapp}</p><p>Venite a controllare nel portale: <a href="${CLIENT_URL}/?view=admin">Vai al Portale Admin</a></p>`
+        })
+      }).catch(err => console.error('Email notify error:', err));
+    } catch (e) {
+      console.error('Email fetch error:', e);
+    }
+
     // Registra nel log di audit dell'agenzia
     try {
       const logs = loadJsonFile('audit_logs.json', []);
