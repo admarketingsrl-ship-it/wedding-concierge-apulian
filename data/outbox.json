@@ -1,5 +1,19 @@
 [
   {
+    "id": "mail-1794326642402-mj671",
+    "to": "apulianweddingconcierge@gmail.com",
+    "from": "apulianweddingconcierge@gmail.com",
+    "subject": "Test Invio SMTP Gmail Finale",
+    "html": "Test di invio SMTP con password corretta.",
+    "text": "Test di invio SMTP con password corretta.",
+    "timestamp": "2026-11-10T16:04:02.402Z",
+    "status": "sent_smtp",
+    "provider": "smtp",
+    "mailtoLink": "mailto:apulianweddingconcierge%40gmail.com?subject=Test%20Invio%20SMTP%20Gmail%20Finale&body=Test%20di%20invio%20SMTP%20con%20password%20corretta.",
+    "webmailLink": "https://mail.google.com/mail/?view=cm&fs=1&to=apulianweddingconcierge%40gmail.com&su=Test%20Invio%20SMTP%20Gmail%20Finale&body=Test%20di%20invio%20SMTP%20con%20password%20corretta.",
+    "deliveryId": "<a06792bc-09de-9089-39f6-b451428ee10f@gmail.com>"
+  },
+  {
     "id": "mail-1794325834207-u7oqm",
     "to": "apulianweddingconcierge@gmail.com",
     "from": "apulianweddingconcierge@gmail.com",

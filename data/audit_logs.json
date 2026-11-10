@@ -1,5 +1,25 @@
 [
   {
+    "id": "log-1794326643110-u63e",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_SENT",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email SMTP inviata con successo a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail Finale\"",
+    "timestamp": "2026-11-10T16:04:03.110Z"
+  },
+  {
+    "id": "log-1794326639050-clan",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "SETTINGS_UPDATE",
+    "entityType": "SETTINGS",
+    "entityTitle": "SMTP Email Gateway",
+    "details": "Aggiornata configurazione e credenziali server SMTP",
+    "timestamp": "2026-11-10T16:03:59.050Z"
+  },
+  {
     "id": "log-1794325834384-2qlr",
     "actorName": "Gateway Email",
     "actorRole": "Sistema",
