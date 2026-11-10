@@ -1,0 +1,9 @@
+{
+  "host": "smtp.gmail.com",
+  "port": 465,
+  "user": "apulianweddingconcierge@gmail.com",
+  "pass": "vostra_password_app_gmail",
+  "fromEmail": "apulianweddingconcierge@gmail.com",
+  "provider": "smtp",
+  "updatedAt": "2026-11-10T15:49:27.136Z"
+}

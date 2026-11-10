@@ -1631,9 +1631,12 @@ app.post('/api/send-email', async (req, res, next) => {
           secure: Number(port) === 465,
           auth: { user, pass }
         });
+        console.log('✅ Transporter SMTP creato.');
       } catch (e) {
-        console.warn('⚠️ Errore creazione transporter SMTP:', e);
+        console.error('⚠️ Errore creazione transporter SMTP:', e);
       }
+    } else {
+      console.log('⚠️ Dati SMTP incompleti o mancanti');
     }
 
     if (transporter) {
@@ -1642,8 +1645,8 @@ app.post('/api/send-email', async (req, res, next) => {
           from: senderEmail,
           to: recipient,
           subject: mailSubject,
-          html: html,
-          text: text
+          html: html || text || '',
+          text: text || ''
         });
         console.log(`✅ Email inviata via SMTP con successo a ${recipient}! MessageId: ${info.messageId}`);
         emailRecord.status = 'sent_smtp';
@@ -1661,7 +1664,8 @@ app.post('/api/send-email', async (req, res, next) => {
           timestamp: emailRecord.timestamp
         });
       } catch (smtpErr) {
-        console.error('🔥 Errore invio SMTP:', smtpErr);
+        console.error('🔥 Errore fatale invio SMTP:', smtpErr);
+        return res.status(500).json({ success: false, message: 'Errore invio SMTP: ' + smtpErr.message });
       }
     }
 

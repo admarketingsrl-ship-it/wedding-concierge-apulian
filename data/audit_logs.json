@@ -1,5 +1,85 @@
 [
   {
+    "id": "log-1794325834384-2qlr",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail 7\"",
+    "timestamp": "2026-11-10T15:50:34.384Z"
+  },
+  {
+    "id": "log-1794325822405-rcvc",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail 6\"",
+    "timestamp": "2026-11-10T15:50:22.405Z"
+  },
+  {
+    "id": "log-1794325807480-h7wk",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail 5\"",
+    "timestamp": "2026-11-10T15:50:07.480Z"
+  },
+  {
+    "id": "log-1794325796985-69ns",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail 4\"",
+    "timestamp": "2026-11-10T15:49:56.985Z"
+  },
+  {
+    "id": "log-1794325786801-vjs6",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail 3\"",
+    "timestamp": "2026-11-10T15:49:46.801Z"
+  },
+  {
+    "id": "log-1794325776853-w7zb",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail 2\"",
+    "timestamp": "2026-11-10T15:49:36.853Z"
+  },
+  {
+    "id": "log-1794325769628-4osc",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_QUEUED",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email registrata in Outbox e pronta per invio a apulianweddingconcierge@gmail.com: \"Test Invio SMTP Gmail\"",
+    "timestamp": "2026-11-10T15:49:29.628Z"
+  },
+  {
+    "id": "log-1794325767137-yomw",
+    "actorName": "Staff Agenzia",
+    "actorRole": "Amministratore",
+    "actionType": "SETTINGS_UPDATE",
+    "entityType": "SETTINGS",
+    "entityTitle": "SMTP Email Gateway",
+    "details": "Aggiornata configurazione e credenziali server SMTP",
+    "timestamp": "2026-11-10T15:49:27.137Z"
+  },
+  {
     "id": "log-1794245241340",
     "action": "COUPLE_ONBOARDING_RECEIVED",
     "details": "Ricevuto questionario onboarding per Camilla & Federico (Masseria San Domenico)",
