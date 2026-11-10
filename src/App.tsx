@@ -239,6 +239,60 @@ export default function App() {
     }
   };
 
+  // Polling e sincronizzazione automatica dei matrimoni dal backend (riceve istantaneamente i matrimoni da onboarding)
+  let isWeddingSyncInFlight = false;
+  const syncWeddingsWithBackend = async () => {
+    if (isWeddingSyncInFlight) return;
+    isWeddingSyncInFlight = true;
+    try {
+      const res = await fetch('/api/weddings');
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (data?.success && Array.isArray(data.weddings)) {
+          setWeddings(prev => {
+            const deletedCodes = getDeletedCodes();
+            const map = new Map<string, WeddingData>();
+            // 1. Matrimoni già presenti in locale
+            prev.forEach(w => {
+              const code = (w.weddingCode || w.id || '').trim().toUpperCase();
+              if (code && !deletedCodes.includes(code) && !deletedCodes.includes(w.id)) {
+                map.set(code, w);
+              }
+            });
+            // 2. Matrimoni aggiornati e nuovi ricevuti dal server
+            let hasNew = false;
+            data.weddings.forEach((w: WeddingData) => {
+              const code = (w.weddingCode || w.id || '').trim().toUpperCase();
+              if (code && !deletedCodes.includes(code) && !deletedCodes.includes(w.id)) {
+                if (!map.has(code)) {
+                  map.set(code, w);
+                  hasNew = true;
+                } else {
+                  // Conserva campi locali integrando eventuali aggiornamenti del server
+                  const local = map.get(code)!;
+                  map.set(code, { ...w, ...local, id: local.id || w.id });
+                }
+              }
+            });
+
+            const merged = Array.from(map.values());
+            if (hasNew || merged.length !== prev.length) {
+              try {
+                localStorage.setItem(WEDDINGS_STORAGE_KEY, JSON.stringify(merged));
+              } catch {}
+              return merged;
+            }
+            return prev;
+          });
+        }
+      }
+    } catch {
+      // Fallback offline non bloccante
+    } finally {
+      isWeddingSyncInFlight = false;
+    }
+  };
+
   useEffect(() => {
     // 1. Sottoscrizione Realtime Firestore per la chat istantanea
     let unsubscribeFirestore: (() => void) | null = null;
@@ -265,8 +319,31 @@ export default function App() {
     // 2. Fetch di backup iniziale dal server locale/Express
     syncChatWithBackend();
     syncWishesWithBackend();
+    syncWeddingsWithBackend();
     const interval = setInterval(syncChatWithBackend, 5000);
     const wishInterval = setInterval(syncWishesWithBackend, 3000);
+    const weddingInterval = setInterval(syncWeddingsWithBackend, 4000);
+
+    // Canale real-time cross-tab BroadcastChannel per matrimoni
+    const weddingChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window ? new BroadcastChannel('apulian_weddings_sync') : null;
+    if (weddingChannel) {
+      weddingChannel.onmessage = (event) => {
+        if (event.data?.weddings && Array.isArray(event.data.weddings)) {
+          setWeddings(event.data.weddings);
+        } else if (event.data?.wedding) {
+          const incoming: WeddingData = event.data.wedding;
+          setWeddings(prev => {
+            const code = (incoming.weddingCode || incoming.id || '').toUpperCase();
+            const filtered = prev.filter(w => (w.weddingCode || w.id || '').toUpperCase() !== code);
+            const next = [incoming, ...filtered];
+            try {
+              localStorage.setItem(WEDDINGS_STORAGE_KEY, JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+      };
+    }
 
     // Canale real-time cross-tab BroadcastChannel per la chat
     const chatChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window ? new BroadcastChannel('apulian_chat_sync') : null;
@@ -353,9 +430,11 @@ export default function App() {
       if (unsubscribeWishes) unsubscribeWishes();
       clearInterval(interval);
       clearInterval(wishInterval);
+      clearInterval(weddingInterval);
       window.removeEventListener('storage', handleStorage);
       if (chatChannel) chatChannel.close();
       if (wishChannel) wishChannel.close();
+      if (weddingChannel) weddingChannel.close();
     };
   }, []);
 
@@ -447,21 +526,97 @@ export default function App() {
   };
 
   const handleSubmitOnboardingDossier = async (dossier: CoupleOnboardingDossier): Promise<boolean> => {
-    const nextList = [dossier, ...onboardingDossiers.filter(d => d.id !== dossier.id)];
+    // 1. Costruisci il matrimonio attivo immediatamente
+    const cleanB = (dossier.brideName || 'SPOSA').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const cleanG = (dossier.groomName || 'SPOSO').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const year = dossier.weddingDate ? dossier.weddingDate.split('-')[0] : '2026';
+    let baseCode = `${cleanB}-${cleanG}-${year}`;
+    if (weddings.some(w => (w.weddingCode || '').toUpperCase() === baseCode)) {
+      baseCode = `${baseCode}-${Math.floor(Math.random() * 90 + 10)}`;
+    }
+
+    const coupleNames = `${dossier.brideName} & ${dossier.groomName}`;
+    const localWedding: WeddingData = {
+      id: `wed-${Date.now()}`,
+      weddingCode: baseCode,
+      coupleNames: coupleNames,
+      coupleEmail: dossier.coupleEmail,
+      couplePhone: dossier.phoneWhatsapp,
+      couplePassword: 'Sposi2026!',
+      weddingDate: dossier.weddingDate || '2026-09-20',
+      venue: dossier.venueLocation || 'Masseria in Puglia',
+      city: dossier.venueLocation?.includes('Fasano') ? 'Fasano (BR)' : dossier.venueLocation?.includes('Monopoli') ? 'Monopoli (BA)' : 'Puglia',
+      country: 'Italia',
+      bannerImage: '',
+      welcomeMessage: `Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.`,
+      currency: 'EUR',
+      conciergeEmail: 'apulianweddingconcierge@gmail.com',
+      conciergePhone: '+39 340 1234567',
+      conciergeWhatsApp: '+39 340 1234567',
+      dressCode: 'Abito elegante / Puglia Chic tra gli ulivi',
+      story: `Matrimonio di ${coupleNames} a ${dossier.venueLocation || 'Masseria'}. Invitati previsti: ${dossier.estimatedGuestsCount || 80}. Note: ${dossier.specialNotesForValeria || 'Nessuna nota aggiuntiva'}. ${dossier.desiredVibe || ''}`,
+      hotels: [],
+      transfers: [],
+      experiences: [],
+      extraServices: [],
+      guests: [],
+      schedule: [
+        { id: `sch-1`, time: '17:30', title: 'Cerimonia Ufficiale', location: dossier.ceremonyTypeAndLocation || dossier.venueLocation || 'Masseria', description: 'Accoglienza ospiti e rito' },
+        { id: `sch-2`, time: '19:30', title: 'Aperitivo & Ricevimento Pugliese', location: dossier.venueLocation || 'Masseria', description: 'Cena tipica sotto le luminarie pugliesi e festa' }
+      ],
+      galleryPhotos: [],
+      weddingAlbumPhotos: [],
+      secondaryInfo: [
+        { id: `sec-1`, title: 'Logistica & Transfer', category: 'logistics', content: `Aeroporti consigliati: ${(dossier.mainArrivalHubs || []).join(', ') || 'Bari e Brindisi'}. Valeria organizza le navette per tutti i trasferimenti.` }
+      ],
+      broadcastAnnouncements: [],
+      giftRequests: [],
+      notifications: [
+        {
+          id: `alert-${Date.now()}`,
+          weddingCode: baseCode,
+          source: 'COUPLE_UPDATE',
+          authorName: coupleNames,
+          authorRole: 'sposi',
+          title: `Nuovo Matrimonio creato da questionario onboarding!`,
+          description: `Compilato da ${coupleNames}. Contatto: ${dossier.phoneWhatsapp}. Password sposi: Sposi2026!`,
+          timestamp: 'Oggi',
+          read: false,
+          actionTab: 'weddings'
+        }
+      ]
+    };
+
+    // Salva immediatamente nel catalogo matrimoni e aggiorna stato
+    handleUpdateWeddings([localWedding, ...weddings.filter(w => w.weddingCode !== baseCode)]);
+
+    const nextDossier: CoupleOnboardingDossier = {
+      ...dossier,
+      status: 'CONVERTED',
+      convertedWeddingCode: baseCode
+    };
+
+    const nextList = [nextDossier, ...onboardingDossiers.filter(d => d.id !== dossier.id)];
     setOnboardingDossiers(nextList);
     try {
       localStorage.setItem('apulian_onboarding_dossiers_v1', JSON.stringify(nextList));
     } catch {}
 
-    setSyncFeedback(`Nuovo questionario onboarding ricevuto da ${dossier.brideName} & ${dossier.groomName}!`);
-    setTimeout(() => setSyncFeedback(null), 6000);
+    setSyncFeedback(`Nuovo matrimonio ${baseCode} creato con successo per ${dossier.brideName} & ${dossier.groomName}!`);
+    setTimeout(() => setSyncFeedback(null), 7000);
 
     try {
-      await fetch('/api/onboarding', {
+      const res = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dossier)
+        body: JSON.stringify(nextDossier)
       });
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData?.wedding) {
+          handleUpdateWeddings([resData.wedding, ...weddings.filter(w => w.weddingCode !== resData.wedding.weddingCode)]);
+        }
+      }
     } catch (e) {
       console.warn('Errore salvataggio dossier su server:', e);
     }

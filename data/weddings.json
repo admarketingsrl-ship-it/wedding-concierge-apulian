@@ -1,5 +1,206 @@
 [
   {
+    "id": "wed-1794328785168",
+    "weddingCode": "ALESSIA-MARCO-2026",
+    "coupleNames": "Alessia & Marco",
+    "coupleEmail": "alessia.marco2026@gmail.com",
+    "couplePhone": "+393499887766",
+    "couplePassword": "Sposi2026!",
+    "weddingDate": "2026-09-26",
+    "venue": "Masseria Calderisi, Fasano",
+    "city": "Fasano (BR)",
+    "country": "Italia",
+    "bannerImage": "",
+    "welcomeMessage": "Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.",
+    "currency": "EUR",
+    "conciergeEmail": "apulianweddingconcierge@gmail.com",
+    "conciergePhone": "+39 340 1234567",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "dressCode": "Abito elegante / Puglia Chic tra gli ulivi",
+    "story": "Matrimonio di Alessia & Marco a Masseria Calderisi, Fasano. Invitati previsti: 120. Note coppia: Vorremmo organizzare la pizzica salentina e navette dall aeroporto di Brindisi.. ",
+    "hotels": [],
+    "transfers": [],
+    "experiences": [],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [
+      {
+        "id": "sch-1794328785168-1",
+        "time": "17:30",
+        "title": "Cerimonia Ufficiale",
+        "location": "Masseria Calderisi, Fasano",
+        "description": "Accoglienza ospiti e rito"
+      },
+      {
+        "id": "sch-1794328785168-2",
+        "time": "19:30",
+        "title": "Aperitivo & Ricevimento Pugliese",
+        "location": "Masseria Calderisi, Fasano",
+        "description": "Cena tipica sotto le luminarie pugliesi e festa"
+      }
+    ],
+    "galleryPhotos": [],
+    "weddingAlbumPhotos": [],
+    "secondaryInfo": [
+      {
+        "id": "sec-1794328785169-1",
+        "title": "Logistica & Transfer",
+        "category": "logistics",
+        "content": "Aeroporti consigliati: Bari e Brindisi. Valeria organizza le navette per tutti i trasferimenti."
+      }
+    ],
+    "broadcastAnnouncements": [],
+    "giftRequests": [],
+    "notifications": [
+      {
+        "id": "alert-1794328785169",
+        "weddingCode": "ALESSIA-MARCO-2026",
+        "source": "COUPLE_UPDATE",
+        "authorName": "Alessia & Marco",
+        "authorRole": "sposi",
+        "title": "Nuovo Matrimonio creato da questionario onboarding!",
+        "description": "Compilato da Alessia & Marco. Contatto: +393499887766. Password sposi: Sposi2026!",
+        "timestamp": "Oggi, 16:39",
+        "read": false,
+        "actionTab": "weddings"
+      }
+    ]
+  },
+  {
+    "id": "wed-onboarding-1794245241339",
+    "weddingCode": "CAMILLA-FEDERICO-2026",
+    "coupleNames": "Camilla & Federico",
+    "coupleEmail": "camilla.federico2026@gmail.com",
+    "couplePhone": "+39 333 9876543",
+    "couplePassword": "Sposi2026!",
+    "weddingDate": "2026-09-19",
+    "venue": "Masseria San Domenico",
+    "city": "Puglia",
+    "country": "Italia",
+    "bannerImage": "",
+    "welcomeMessage": "Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.",
+    "currency": "EUR",
+    "conciergeEmail": "apulianweddingconcierge@gmail.com",
+    "conciergePhone": "+39 340 1234567",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "dressCode": "Abito elegante / Puglia Chic tra gli ulivi",
+    "story": "Matrimonio di Camilla & Federico a Masseria San Domenico. Invitati previsti: 110. Note: Nessuna nota aggiuntiva",
+    "hotels": [],
+    "transfers": [],
+    "experiences": [],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [
+      {
+        "id": "sch-1",
+        "time": "17:30",
+        "title": "Cerimonia Ufficiale",
+        "location": "Masseria San Domenico",
+        "description": "Accoglienza ospiti e rito"
+      },
+      {
+        "id": "sch-2",
+        "time": "19:30",
+        "title": "Aperitivo & Ricevimento Pugliese",
+        "location": "Masseria San Domenico",
+        "description": "Cena tipica sotto le luminarie pugliesi e festa"
+      }
+    ],
+    "galleryPhotos": [],
+    "weddingAlbumPhotos": [],
+    "secondaryInfo": [
+      {
+        "id": "sec-1",
+        "title": "Logistica & Transfer",
+        "category": "logistics",
+        "content": "Aeroporti consigliati: Bari e Brindisi. Valeria organizza le navette per tutti i trasferimenti."
+      }
+    ],
+    "broadcastAnnouncements": [],
+    "giftRequests": [],
+    "notifications": [
+      {
+        "id": "alert-onboard-1794328785168",
+        "weddingCode": "CAMILLA-FEDERICO-2026",
+        "source": "COUPLE_UPDATE",
+        "authorName": "Camilla & Federico",
+        "authorRole": "sposi",
+        "title": "Nuovo Matrimonio da Onboarding: Camilla & Federico",
+        "description": "Compilato da Camilla & Federico. Contatto: +39 333 9876543. Password sposi: Sposi2026!",
+        "timestamp": "Oggi",
+        "read": false,
+        "actionTab": "weddings"
+      }
+    ]
+  },
+  {
+    "id": "wed-onboarding-1794327145500",
+    "weddingCode": "TESTSPOSA-TESTSPOSO-2026",
+    "coupleNames": "TestSposa & TestSposo",
+    "coupleEmail": "test@sposi.it",
+    "couplePhone": "+393331112233",
+    "couplePassword": "Sposi2026!",
+    "weddingDate": "2026-09-20",
+    "venue": "Masseria San Domenico",
+    "city": "Puglia",
+    "country": "Italia",
+    "bannerImage": "",
+    "welcomeMessage": "Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.",
+    "currency": "EUR",
+    "conciergeEmail": "apulianweddingconcierge@gmail.com",
+    "conciergePhone": "+39 340 1234567",
+    "conciergeWhatsApp": "+39 340 1234567",
+    "dressCode": "Abito elegante / Puglia Chic tra gli ulivi",
+    "story": "Matrimonio di TestSposa & TestSposo a Masseria San Domenico. Invitati previsti: 80. Note: Nessuna nota aggiuntiva",
+    "hotels": [],
+    "transfers": [],
+    "experiences": [],
+    "extraServices": [],
+    "guests": [],
+    "schedule": [
+      {
+        "id": "sch-1",
+        "time": "17:30",
+        "title": "Cerimonia Ufficiale",
+        "location": "Masseria San Domenico",
+        "description": "Accoglienza ospiti e rito"
+      },
+      {
+        "id": "sch-2",
+        "time": "19:30",
+        "title": "Aperitivo & Ricevimento Pugliese",
+        "location": "Masseria San Domenico",
+        "description": "Cena tipica sotto le luminarie pugliesi e festa"
+      }
+    ],
+    "galleryPhotos": [],
+    "weddingAlbumPhotos": [],
+    "secondaryInfo": [
+      {
+        "id": "sec-1",
+        "title": "Logistica & Transfer",
+        "category": "logistics",
+        "content": "Aeroporti consigliati: Bari e Brindisi. Valeria organizza le navette per tutti i trasferimenti."
+      }
+    ],
+    "broadcastAnnouncements": [],
+    "giftRequests": [],
+    "notifications": [
+      {
+        "id": "alert-onboard-1794328785168",
+        "weddingCode": "TESTSPOSA-TESTSPOSO-2026",
+        "source": "COUPLE_UPDATE",
+        "authorName": "TestSposa & TestSposo",
+        "authorRole": "sposi",
+        "title": "Nuovo Matrimonio da Onboarding: TestSposa & TestSposo",
+        "description": "Compilato da TestSposa & TestSposo. Contatto: +393331112233. Password sposi: Sposi2026!",
+        "timestamp": "Oggi",
+        "read": false,
+        "actionTab": "weddings"
+      }
+    ]
+  },
+  {
     "weddingCode": "ELEONORA-LORENZO-2026",
     "coupleNames": "Eleonora & Lorenzo",
     "coupleEmail": "eleonora.lorenzo2026@gmail.com",

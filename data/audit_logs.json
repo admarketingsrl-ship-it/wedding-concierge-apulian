@@ -1,5 +1,22 @@
 [
   {
+    "id": "log-1794328785754",
+    "action": "COUPLE_ONBOARDING_RECEIVED",
+    "details": "Ricevuto questionario onboarding per Alessia & Marco (Masseria Calderisi, Fasano)",
+    "author": "Sposi (Landing Onboarding)",
+    "timestamp": "2026-11-10T16:39:45.754Z"
+  },
+  {
+    "id": "log-1794328785754-304v",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_SENT",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email SMTP inviata a apulianweddingconcierge@gmail.com: \"💍 Nuovo Matrimonio da Onboarding: Alessia & Marco\"",
+    "timestamp": "2026-11-10T16:39:45.754Z"
+  },
+  {
     "id": "log-1794327670572-r55m",
     "actorName": "Staff",
     "actorRole": "Admin",

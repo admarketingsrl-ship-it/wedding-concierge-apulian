@@ -493,6 +493,83 @@ function loadWeddingsFromDisk() {
     weddings = DEFAULT_INITIAL_WEDDINGS;
     saveJsonFile('weddings.json', weddings);
   }
+
+  // Verifica automatica se ci sono dossier di onboarding non ancora registrati nei matrimoni
+  try {
+    const dossiers = loadJsonFile('onboarding.json', []);
+    if (Array.isArray(dossiers) && dossiers.length > 0) {
+      let changed = false;
+      dossiers.forEach(d => {
+        if (d && (d.brideName || d.groomName)) {
+          const cleanB = (d.brideName || 'SPOSA').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const cleanG = (d.groomName || 'SPOSO').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const year = d.weddingDate ? d.weddingDate.split('-')[0] : '2026';
+          const baseCode = d.convertedWeddingCode || `${cleanB}-${cleanG}-${year}`;
+          const exists = weddings.some(w => (w.weddingCode || '').toUpperCase() === baseCode.toUpperCase());
+          if (!exists) {
+            const coupleNames = `${d.brideName} & ${d.groomName}`;
+            weddings.unshift({
+              id: d.id ? `wed-${d.id}` : `wed-${Date.now()}`,
+              weddingCode: baseCode,
+              coupleNames: coupleNames,
+              coupleEmail: d.coupleEmail || '',
+              couplePhone: d.phoneWhatsapp || '',
+              couplePassword: 'Sposi2026!',
+              weddingDate: d.weddingDate || '2026-09-20',
+              venue: d.venueLocation || 'Masseria in Puglia',
+              city: d.venueLocation?.includes('Fasano') ? 'Fasano (BR)' : d.venueLocation?.includes('Monopoli') ? 'Monopoli (BA)' : 'Puglia',
+              country: 'Italia',
+              bannerImage: '',
+              welcomeMessage: `Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.`,
+              currency: 'EUR',
+              conciergeEmail: 'apulianweddingconcierge@gmail.com',
+              conciergePhone: '+39 340 1234567',
+              conciergeWhatsApp: '+39 340 1234567',
+              dressCode: 'Abito elegante / Puglia Chic tra gli ulivi',
+              story: `Matrimonio di ${coupleNames} a ${d.venueLocation || 'Masseria'}. Invitati previsti: ${d.estimatedGuestsCount || 80}. Note: ${d.specialNotesForValeria || 'Nessuna nota aggiuntiva'}`,
+              hotels: [],
+              transfers: [],
+              experiences: [],
+              extraServices: [],
+              guests: [],
+              schedule: [
+                { id: `sch-1`, time: '17:30', title: 'Cerimonia Ufficiale', location: d.ceremonyTypeAndLocation || d.venueLocation || 'Masseria', description: 'Accoglienza ospiti e rito' },
+                { id: `sch-2`, time: '19:30', title: 'Aperitivo & Ricevimento Pugliese', location: d.venueLocation || 'Masseria', description: 'Cena tipica sotto le luminarie pugliesi e festa' }
+              ],
+              galleryPhotos: [],
+              weddingAlbumPhotos: [],
+              secondaryInfo: [
+                { id: `sec-1`, title: 'Logistica & Transfer', category: 'logistics', content: `Aeroporti consigliati: ${(d.mainArrivalHubs || []).join(', ') || 'Bari e Brindisi'}. Valeria organizza le navette per tutti i trasferimenti.` }
+              ],
+              broadcastAnnouncements: [],
+              giftRequests: [],
+              notifications: [
+                {
+                  id: `alert-onboard-${Date.now()}`,
+                  weddingCode: baseCode,
+                  source: 'COUPLE_UPDATE',
+                  authorName: coupleNames,
+                  authorRole: 'sposi',
+                  title: `Nuovo Matrimonio da Onboarding: ${coupleNames}`,
+                  description: `Compilato da ${coupleNames}. Contatto: ${d.phoneWhatsapp || ''}. Password sposi: Sposi2026!`,
+                  timestamp: 'Oggi',
+                  read: false,
+                  actionTab: 'weddings'
+                }
+              ]
+            });
+            changed = true;
+          }
+        }
+      });
+      if (changed) {
+        saveJsonFile('weddings.json', weddings);
+      }
+    }
+  } catch (err) {
+    console.warn('Auto-sync onboarding to weddings error:', err);
+  }
+
   return weddings;
 }
 
@@ -1455,11 +1532,96 @@ app.post('/api/onboarding', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Dati sposi incompleti' });
     }
 
+    // 1. Genera e crea immediatamente il matrimonio attivo nel catalogo backend
+    const cleanB = (dossier.brideName || 'SPOSA').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const cleanG = (dossier.groomName || 'SPOSO').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const year = dossier.weddingDate ? dossier.weddingDate.split('-')[0] : '2026';
+    let baseCode = `${cleanB}-${cleanG}-${year}`;
+
+    let currentWeddings = loadWeddingsFromDisk();
+    if (currentWeddings.some(w => (w.weddingCode || '').toUpperCase() === baseCode)) {
+      baseCode = `${baseCode}-${Math.floor(Math.random() * 90 + 10)}`;
+    }
+
+    const coupleNames = `${dossier.brideName} & ${dossier.groomName}`;
+    const newWedding = {
+      id: `wed-${Date.now()}`,
+      weddingCode: baseCode,
+      coupleNames: coupleNames,
+      coupleEmail: dossier.coupleEmail || '',
+      couplePhone: dossier.phoneWhatsapp || '',
+      couplePassword: 'Sposi2026!',
+      weddingDate: dossier.weddingDate || '2026-09-20',
+      venue: dossier.venueLocation || 'Masseria in Puglia',
+      city: dossier.venueLocation?.includes('Fasano') ? 'Fasano (BR)' : dossier.venueLocation?.includes('Monopoli') ? 'Monopoli (BA)' : 'Puglia',
+      country: 'Italia',
+      bannerImage: '',
+      welcomeMessage: `Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.`,
+      currency: 'EUR',
+      conciergeEmail: 'apulianweddingconcierge@gmail.com',
+      conciergePhone: '+39 340 1234567',
+      conciergeWhatsApp: '+39 340 1234567',
+      dressCode: 'Abito elegante / Puglia Chic tra gli ulivi',
+      story: `Matrimonio di ${coupleNames} a ${dossier.venueLocation || 'Masseria'}. Invitati previsti: ${dossier.estimatedGuestsCount || 80}. Note coppia: ${dossier.specialNotesForValeria || 'Nessuna nota aggiuntiva'}. ${dossier.desiredVibe || ''}`,
+      hotels: [],
+      transfers: [],
+      experiences: [],
+      extraServices: [],
+      guests: [],
+      schedule: [
+        {
+          id: `sch-${Date.now()}-1`,
+          time: '17:30',
+          title: 'Cerimonia Ufficiale',
+          location: dossier.ceremonyTypeAndLocation || dossier.venueLocation || 'Masseria',
+          description: 'Accoglienza ospiti e rito'
+        },
+        {
+          id: `sch-${Date.now()}-2`,
+          time: '19:30',
+          title: 'Aperitivo & Ricevimento Pugliese',
+          location: dossier.venueLocation || 'Masseria',
+          description: 'Cena tipica sotto le luminarie pugliesi e festa'
+        }
+      ],
+      galleryPhotos: [],
+      weddingAlbumPhotos: [],
+      secondaryInfo: [
+        {
+          id: `sec-${Date.now()}-1`,
+          title: 'Logistica & Transfer',
+          category: 'logistics',
+          content: `Aeroporti consigliati: ${(dossier.mainArrivalHubs || []).join(', ') || 'Bari e Brindisi'}. Valeria organizza le navette per tutti i trasferimenti.`
+        }
+      ],
+      broadcastAnnouncements: [],
+      giftRequests: [],
+      notifications: [
+        {
+          id: `alert-${Date.now()}`,
+          weddingCode: baseCode,
+          source: 'COUPLE_UPDATE',
+          authorName: coupleNames,
+          authorRole: 'sposi',
+          title: `Nuovo Matrimonio creato da questionario onboarding!`,
+          description: `Compilato da ${coupleNames}. Contatto: ${dossier.phoneWhatsapp}. Password sposi: Sposi2026!`,
+          timestamp: `Oggi, ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`,
+          read: false,
+          actionTab: 'weddings'
+        }
+      ]
+    };
+
+    // Aggiungi immediatamente in cima all'elenco dei matrimoni
+    currentWeddings.unshift(newWedding);
+    saveJsonFile('weddings.json', currentWeddings);
+
     const currentList = loadJsonFile('onboarding.json', []);
     const newDossier = {
       id: dossier.id || `onboarding-${Date.now()}`,
       submittedAt: dossier.submittedAt || new Date().toISOString(),
-      status: dossier.status || 'NEW',
+      status: 'CONVERTED',
+      convertedWeddingCode: baseCode,
       ...dossier
     };
 
@@ -1544,7 +1706,7 @@ ${adminUrl}`;
       saveJsonFile('audit_logs.json', logs.slice(0, 100));
     } catch {}
 
-    return res.status(201).json({ success: true, dossier: newDossier });
+    return res.status(201).json({ success: true, dossier: newDossier, wedding: newWedding });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
