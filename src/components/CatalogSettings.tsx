@@ -8,6 +8,7 @@ export interface CatalogSettingsProps {
   onUpdate: (s: AdminSettings) => void;
   onboardingDossiers?: CoupleOnboardingDossier[];
   onConvertDossierToWedding?: (dossier: CoupleOnboardingDossier) => void;
+  onNavigateToWedding?: (weddingCode: string) => void;
   onOpenLandingPreview?: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function CatalogSettings({
   onUpdate,
   onboardingDossiers = [],
   onConvertDossierToWedding,
+  onNavigateToWedding,
   onOpenLandingPreview
 }: CatalogSettingsProps) {
   const [activeTab, setActiveTab] = useState<'invite' | 'catalog'>('invite');
@@ -81,6 +83,7 @@ export default function CatalogSettings({
           onUpdateSettings={onUpdate}
           onboardingDossiers={onboardingDossiers}
           onConvertDossierToWedding={onConvertDossierToWedding}
+          onNavigateToWedding={onNavigateToWedding}
           onOpenLandingPreview={onOpenLandingPreview}
         />
       )}

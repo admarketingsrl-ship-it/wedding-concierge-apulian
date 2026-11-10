@@ -1,5 +1,31 @@
 [
   {
+    "id": "mail-1794327649014-hdh2f",
+    "to": "apulianweddingconcierge@gmail.com",
+    "from": "apulianweddingconcierge@gmail.com",
+    "subject": "💍 Nuovo Matrimonio da Onboarding: Eleonora & Lorenzo",
+    "html": "\n      <div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #292524; border: 1px solid #e7e5e4; border-radius: 16px; overflow: hidden; background: #ffffff;\">\n        <div style=\"background: #1c1917; padding: 24px; text-align: center; color: #ffffff;\">\n          <h2 style=\"margin: 0 0 6px 0; color: #f59e0b; font-size: 22px;\">Apulian Wedding Concierge</h2>\n          <p style=\"margin: 0; color: #d6d3d1; font-size: 13px;\">Nuovo Questionario Onboarding Ricevuto</p>\n        </div>\n        <div style=\"padding: 24px;\">\n          <p style=\"font-size: 15px; margin-top: 0;\">Ciao <strong>Valeria</strong>,</p>\n          <p style=\"font-size: 14px; line-height: 1.6;\">\n            La sposa ha appena completato il questionario dalla landing page di benvenuto! Ecco i dettagli salienti per creare il matrimonio ed avviare i servizi di concierge:\n          </p>\n          <div style=\"background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 12px; padding: 18px; margin: 20px 0;\">\n            <table style=\"width: 100%; border-collapse: collapse; font-size: 13px;\">\n              <tr><td style=\"padding: 6px 0; color: #78716c; width: 140px;\"><strong>Coppia:</strong></td><td style=\"padding: 6px 0; font-weight: bold; color: #1c1917;\">Eleonora & Lorenzo</td></tr>\n              <tr><td style=\"padding: 6px 0; color: #78716c;\"><strong>Data Nozze:</strong></td><td style=\"padding: 6px 0;\">2026-10-10</td></tr>\n              <tr><td style=\"padding: 6px 0; color: #78716c;\"><strong>Location / Masseria:</strong></td><td style=\"padding: 6px 0;\">Masseria Torre Coccaro, Savelletri</td></tr>\n              <tr><td style=\"padding: 6px 0; color: #78716c;\"><strong>Email Sposa:</strong></td><td style=\"padding: 6px 0;\"><a href=\"mailto:eleonora.lorenzo2026@gmail.com\" style=\"color: #b45309;\">eleonora.lorenzo2026@gmail.com</a></td></tr>\n              <tr><td style=\"padding: 6px 0; color: #78716c;\"><strong>WhatsApp / Cell:</strong></td><td style=\"padding: 6px 0;\"><a href=\"https://wa.me/393471234567\" style=\"color: #059669; font-weight: bold;\">+393471234567</a></td></tr>\n              <tr><td style=\"padding: 6px 0; color: #78716c;\"><strong>Invitati Stimati:</strong></td><td style=\"padding: 6px 0;\">95 (70 da fuori)</td></tr>\n              <tr><td style=\"padding: 6px 0; color: #78716c;\"><strong>Canale Kickoff:</strong></td><td style=\"padding: 6px 0;\">WHATSAPP (Pomeriggio)</td></tr>\n            </table>\n            \n              <div style=\"margin-top: 14px; padding-top: 12px; border-top: 1px dashed #d6d3d1; font-style: italic; color: #57534e; font-size: 12px;\">\n                \"Note per Valeria: Abbiamo molti ospiti dagli Stati Uniti e Londra, vorremmo organizzare transfer da Bari e Brindisi.\"\n              </div>\n            \n          </div>\n          <div style=\"text-align: center; margin: 28px 0 10px 0;\">\n            <a href=\"https://wedding-concierge-apulian.vercel.app/?view=admin\" style=\"background: #b45309; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; font-size: 14px; display: inline-block;\">\n              Accedi al Portale per Creare il Matrimonio\n            </a>\n          </div>\n          <p style=\"font-size: 11px; color: #a8a29e; text-align: center; margin-top: 18px;\">\n            Nel portale Valeria troverà la scheda dossier in \"Invito Sposi & Landing Page\" con il pulsante <strong>Crea Matrimonio dal Dossier</strong> per renderlo immediatamente effettivo.\n          </p>\n        </div>\n      </div>\n    ",
+    "text": "Nuovo Questionario Onboarding Sposi Ricevuto!\nCoppia: Eleonora & Lorenzo\nData Nozze: 2026-10-10\nLocation: Masseria Torre Coccaro, Savelletri\nEmail: eleonora.lorenzo2026@gmail.com\nWhatsApp: +393471234567\nInvitati: 95\nCanale Kickoff: WHATSAPP\n\nAccedi al portale per convertire il dossier in matrimonio effettivo:\nhttps://wedding-concierge-apulian.vercel.app/?view=admin",
+    "timestamp": "2026-11-10T16:20:49.014Z",
+    "status": "sent_smtp",
+    "provider": "smtp",
+    "deliveryId": "<79f9b82c-7385-20af-6640-194db1e3576c@gmail.com>"
+  },
+  {
+    "id": "mail-1794327145530-inw5h",
+    "to": "apulianweddingconcierge@gmail.com",
+    "from": "apulianweddingconcierge@gmail.com",
+    "subject": "Nuovo Matrimonio da Onboarding - TestSposa & TestSposo",
+    "html": "<p>È stato ricevuto un nuovo dossier di onboarding per <strong>TestSposa & TestSposo</strong>.</p><p>Contatto: +393331112233</p><p>Venite a controllare nel portale: <a href=\"https://wedding-concierge-apulian.vercel.app/?view=admin\">Vai al Portale Admin</a></p>",
+    "text": "È stato ricevuto un nuovo dossier di onboarding per TestSposa & TestSposo. Contatto: +393331112233. Venite a controllare nel portale: https://wedding-concierge-apulian.vercel.app/?view=admin",
+    "timestamp": "2026-11-10T16:12:25.530Z",
+    "status": "sent_smtp",
+    "provider": "smtp",
+    "mailtoLink": "mailto:apulianweddingconcierge%40gmail.com?subject=Nuovo%20Matrimonio%20da%20Onboarding%20-%20TestSposa%20%26%20TestSposo&body=%C3%88%20stato%20ricevuto%20un%20nuovo%20dossier%20di%20onboarding%20per%20TestSposa%20%26%20TestSposo.%20Contatto%3A%20%2B393331112233.%20Venite%20a%20controllare%20nel%20portale%3A%20https%3A%2F%2Fwedding-concierge-apulian.vercel.app%2F%3Fview%3Dadmin",
+    "webmailLink": "https://mail.google.com/mail/?view=cm&fs=1&to=apulianweddingconcierge%40gmail.com&su=Nuovo%20Matrimonio%20da%20Onboarding%20-%20TestSposa%20%26%20TestSposo&body=%C3%88%20stato%20ricevuto%20un%20nuovo%20dossier%20di%20onboarding%20per%20TestSposa%20%26%20TestSposo.%20Contatto%3A%20%2B393331112233.%20Venite%20a%20controllare%20nel%20portale%3A%20https%3A%2F%2Fwedding-concierge-apulian.vercel.app%2F%3Fview%3Dadmin",
+    "deliveryId": "<f15dafee-03c2-cb41-9883-183f99c0271d@gmail.com>"
+  },
+  {
     "id": "mail-1794326642402-mj671",
     "to": "apulianweddingconcierge@gmail.com",
     "from": "apulianweddingconcierge@gmail.com",

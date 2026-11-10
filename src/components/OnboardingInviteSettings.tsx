@@ -29,6 +29,7 @@ interface OnboardingInviteSettingsProps {
   onUpdateSettings: (newSettings: AdminSettings) => void;
   onboardingDossiers?: CoupleOnboardingDossier[];
   onConvertDossierToWedding?: (dossier: CoupleOnboardingDossier) => void;
+  onNavigateToWedding?: (weddingCode: string) => void;
   onOpenLandingPreview?: () => void;
 }
 
@@ -37,6 +38,7 @@ export default function OnboardingInviteSettings({
   onUpdateSettings,
   onboardingDossiers = [],
   onConvertDossierToWedding,
+  onNavigateToWedding,
   onOpenLandingPreview
 }: OnboardingInviteSettingsProps) {
   // Input personalizzazione rapida per Valeria
@@ -594,26 +596,45 @@ Valeria · Apulian Wedding Concierge
                   </p>
                 )}
 
-                {onConvertDossierToWedding && dossier.status !== 'CONVERTED' && (
-                  <div className="pt-2 border-t border-stone-200/80 flex items-center justify-between">
-                    <span className="text-[11px] text-stone-500">
-                      Kickoff: {dossier.kickoffCallChannel} ({dossier.kickoffCallTime})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onConvertDossierToWedding(dossier)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-900 hover:bg-amber-950 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Crea Matrimonio dal Dossier</span>
-                    </button>
+                {dossier.convertedWeddingCode ? (
+                  <div className="pt-3 border-t border-stone-200/80 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Matrimonio attivo: <strong className="font-mono bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{dossier.convertedWeddingCode}</strong></span>
+                      </div>
+                      {onNavigateToWedding && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigateToWedding(dossier.convertedWeddingCode!)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                        >
+                          <span>Vai alla Scheda Matrimonio</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-amber-300" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-white border border-stone-200 text-[11px] text-stone-600 space-y-0.5">
+                      <div><strong>Codice Matrimonio:</strong> <span className="font-mono font-bold text-stone-900">{dossier.convertedWeddingCode}</span></div>
+                      <div><strong>Email Sposa:</strong> {dossier.coupleEmail} | <strong>Password:</strong> <span className="font-mono font-bold text-stone-900">Sposi2026!</span></div>
+                    </div>
                   </div>
-                )}
-                {dossier.convertedWeddingCode && (
-                  <div className="pt-2 border-t border-stone-200/80 flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Matrimonio attivo: <strong className="font-mono">{dossier.convertedWeddingCode}</strong></span>
-                  </div>
+                ) : (
+                  onConvertDossierToWedding && (
+                    <div className="pt-3 border-t border-stone-200/80 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-stone-500">
+                        Kickoff: {dossier.kickoffCallChannel || 'WhatsApp'} ({dossier.kickoffCallTime || 'Pomeriggio'})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onConvertDossierToWedding(dossier)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-900 hover:bg-amber-950 text-white text-xs font-bold transition-all cursor-pointer shadow-xs hover:scale-[1.02]"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Crea Matrimonio dal Dossier</span>
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             ))}

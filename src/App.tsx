@@ -435,6 +435,15 @@ export default function App() {
     try {
       localStorage.setItem('apulian_onboarding_dossiers_v1', JSON.stringify(updated));
     } catch {}
+
+    // Sincronizza lo stato di ogni dossier aggiornato sul server Express
+    updated.forEach(d => {
+      fetch(`/api/onboarding/${d.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(d)
+      }).catch(() => {});
+    });
   };
 
   const handleSubmitOnboardingDossier = async (dossier: CoupleOnboardingDossier): Promise<boolean> => {
@@ -456,6 +465,21 @@ export default function App() {
     } catch (e) {
       console.warn('Errore salvataggio dossier su server:', e);
     }
+
+    // Ridondanza invio notifica email a Valeria via server email gateway
+    try {
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'apulianweddingconcierge@gmail.com',
+          provider: 'smtp',
+          subject: `💍 Nuovo Matrimonio da Onboarding: ${dossier.brideName} & ${dossier.groomName}`,
+          text: `Nuovo questionario ricevuto da ${dossier.brideName} & ${dossier.groomName} per ${dossier.venueLocation || 'Puglia'} (${dossier.weddingDate || 'Data da definire'}). Contatto: ${dossier.phoneWhatsapp} (${dossier.coupleEmail}).`,
+          html: `<p>Nuovo questionario ricevuto da <strong>${dossier.brideName} & ${dossier.groomName}</strong></p><p>Location: ${dossier.venueLocation || 'Puglia'} | Data: ${dossier.weddingDate || 'Da definire'}</p><p>Contatto: ${dossier.phoneWhatsapp} (${dossier.coupleEmail})</p>`
+        })
+      }).catch(() => {});
+    } catch {}
 
     return true;
   };

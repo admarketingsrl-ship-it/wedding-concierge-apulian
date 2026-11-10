@@ -269,6 +269,7 @@ export default function AdminPanel({
       coupleNames: coupleNames,
       coupleEmail: dossier.coupleEmail,
       couplePhone: dossier.phoneWhatsapp,
+      couplePassword: 'Sposi2026!',
       weddingDate: dossier.weddingDate || '2026-09-20',
       venue: dossier.venueLocation || 'Masseria in Puglia',
       city: dossier.venueLocation?.includes('Fasano') ? 'Fasano (BR)' : dossier.venueLocation?.includes('Monopoli') ? 'Monopoli (BA)' : 'Puglia',
@@ -276,11 +277,11 @@ export default function AdminPanel({
       bannerImage: '',
       welcomeMessage: `Benvenuti al nostro matrimonio in Puglia! Il team di Valeria e AD Marketing è a vostra disposizione.`,
       currency: 'EUR',
-      conciergeEmail: adminSettings.adminNotificationEmail || 'info@admarketing.it',
+      conciergeEmail: adminSettings.adminNotificationEmail || 'apulianweddingconcierge@gmail.com',
       conciergePhone: adminSettings.valeriaPhone || '+39 340 1234567',
       conciergeWhatsApp: adminSettings.valeriaPhone || '+39 340 1234567',
       dressCode: 'Abito elegante / Puglia Chic tra gli ulivi',
-      story: `Sposi in Puglia a ${dossier.venueLocation || 'Masseria'}. ${dossier.desiredVibe || ''}`,
+      story: `Sposi in Puglia a ${dossier.venueLocation || 'Masseria'}. Invitati previsti: ${dossier.estimatedGuestsCount || 80}. Note coppia: ${dossier.specialNotesForValeria || 'Nessuna nota aggiuntiva'}. ${dossier.desiredVibe || ''}`,
       hotels: [],
       transfers: [],
       experiences: [],
@@ -322,7 +323,7 @@ export default function AdminPanel({
           authorName: coupleNames,
           authorRole: 'sposi',
           title: `Nuovo Matrimonio creato da questionario onboarding!`,
-          description: `Compilato da ${coupleNames}. Contatto: ${dossier.phoneWhatsapp}`,
+          description: `Compilato da ${coupleNames}. Contatto: ${dossier.phoneWhatsapp}. Password sposi: Sposi2026!`,
           timestamp: `Oggi, ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`,
           read: false,
           actionTab: 'weddings'
@@ -331,7 +332,27 @@ export default function AdminPanel({
     };
 
     onUpdateWeddings([newWedding, ...weddings]);
+    setSelectedWeddingId(newWedding.id);
     saveWeddingToFirestore(newWedding).catch(() => {});
+
+    // Salva sul server backend
+    fetch('/api/weddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newWedding)
+    }).catch(err => console.warn('Errore salvataggio nuovo matrimonio su server:', err));
+
+    // Aggiorna stato dossier su server permanente
+    fetch(`/api/onboarding/${dossier.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'CONVERTED',
+        convertedWeddingCode: baseCode,
+        coupleEmail: dossier.coupleEmail,
+        brideName: dossier.brideName
+      })
+    }).catch(err => console.warn('Errore aggiornamento stato dossier su server:', err));
 
     if (onUpdateOnboardingDossiers) {
       const updated = onboardingDossiers.map(d =>
@@ -340,8 +361,19 @@ export default function AdminPanel({
       onUpdateOnboardingDossiers(updated);
     }
 
-    setAlertActionToast(`Matrimonio ${baseCode} (${coupleNames}) creato con successo dal dossier!`);
-    setTimeout(() => setAlertActionToast(null), 5000);
+    setAlertActionToast(`Matrimonio ${baseCode} (${coupleNames}) creato con successo! Password Sposi: Sposi2026! Selezionato e pronto per la gestione.`);
+    setTimeout(() => setAlertActionToast(null), 7000);
+  };
+
+  // Navigazione rapida alla scheda del matrimonio
+  const handleNavigateToWeddingByCode = (weddingCode: string) => {
+    const clean = (weddingCode || '').trim().toUpperCase();
+    const found = weddings.find(w => (w.weddingCode || '').toUpperCase() === clean);
+    if (found) {
+      setSelectedWeddingId(found.id);
+    }
+    setActiveTab('weddings');
+    window.scrollTo({ top: 120, behavior: 'smooth' });
   };
 
   // Gestione Segnalazioni & Feedback di Avviso Matrimoni
@@ -2263,6 +2295,99 @@ export default function AdminPanel({
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+              </div>
+            )}
+
+            {/* Box Questionari Invito Sposi & Onboarding Ricevuti */}
+            {onboardingDossiers && onboardingDossiers.length > 0 && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-300 shadow-2xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Sparkles className="w-4 h-4 text-amber-200" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-stone-900 text-xs sm:text-sm">
+                          Questionari Invito Sposi dalla Landing Page ({onboardingDossiers.length})
+                        </span>
+                        {onboardingDossiers.some(d => d.status === 'NEW') && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold text-[10px] animate-pulse">
+                            Nuovi da creare!
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-600">
+                        Le coppie che hanno compilato il questionario inviato da Valeria. Clicca su &ldquo;Crea Matrimonio&rdquo; per generare all&apos;istante la scheda ufficiale.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('settings');
+                      setSettingsSubTab('onboarding_invite');
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 hover:text-amber-950 underline cursor-pointer shrink-0"
+                  >
+                    <span>Apri Sezione Invito Sposi</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                  {onboardingDossiers.map(dossier => (
+                    <div
+                      key={dossier.id}
+                      className="p-3.5 rounded-xl bg-white border border-stone-200 text-xs space-y-2 shadow-2xs"
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div>
+                          <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                            {dossier.weddingDate || 'Data nozze da definire'}
+                          </span>
+                          <span className="font-bold text-stone-900 text-sm">
+                            {dossier.brideName} &amp; {dossier.groomName}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          dossier.status === 'CONVERTED'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        }`}>
+                          {dossier.status === 'CONVERTED' ? 'Attivo' : 'Nuovo'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-stone-500 truncate">
+                        📍 {dossier.venueLocation || 'Location in Puglia'} · 👥 {dossier.estimatedGuestsCount || 80} invitati
+                      </div>
+                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                        {dossier.status === 'CONVERTED' || dossier.convertedWeddingCode ? (
+                          <button
+                            type="button"
+                            onClick={() => handleNavigateToWeddingByCode(dossier.convertedWeddingCode!)}
+                            className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold text-xs cursor-pointer"
+                          >
+                            <span>Scheda {dossier.convertedWeddingCode}</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleConvertDossierToWedding(dossier)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900 hover:bg-amber-950 text-white font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-300" />
+                            <span>Crea Matrimonio</span>
+                          </button>
+                        )}
+                        <span className="text-[10px] text-stone-400 font-mono">
+                          {dossier.phoneWhatsapp}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -4199,6 +4324,7 @@ export default function AdminPanel({
             }} 
             onboardingDossiers={onboardingDossiers}
             onConvertDossierToWedding={handleConvertDossierToWedding}
+            onNavigateToWedding={handleNavigateToWeddingByCode}
             onOpenLandingPreview={() => onNavigateToOnboarding?.()}
           />
         )}
@@ -5285,6 +5411,7 @@ export default function AdminPanel({
                 onUpdateSettings={onUpdateAdminSettings}
                 onboardingDossiers={onboardingDossiers}
                 onConvertDossierToWedding={handleConvertDossierToWedding}
+                onNavigateToWedding={handleNavigateToWeddingByCode}
                 onOpenLandingPreview={() => onNavigateToOnboarding?.()}
               />
             )}

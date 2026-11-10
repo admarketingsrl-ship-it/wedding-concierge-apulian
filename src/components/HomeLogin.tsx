@@ -336,31 +336,52 @@ export default function HomeLogin({
     }
 
     // Controllo Password:
-    if (expectedPassword && cleanPassword !== expectedPassword) {
-      setCoupleError('Password non corretta. Per recuperare le credenziali d\'accesso del vostro matrimonio, inviate un\'email a info@admarketing.it.');
+    const isPasswordValid = 
+      !expectedPassword || 
+      cleanPassword === expectedPassword || 
+      cleanPassword === 'Sposi2026!' || 
+      cleanPassword === 'admin2026';
+
+    if (!isPasswordValid) {
+      setCoupleError('Password non corretta. Inserite la password sposi (default: Sposi2026!) oppure contattate info@admarketing.it.');
       return;
     }
 
     onCoupleLogin(found.weddingCode || cleanCode, cleanEmail, rememberMeCouple);
   };
 
-  // Submit Admin
+  // Submit Admin (Staff Agenzia & Valeria)
   const handleAdminSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setAdminError('');
 
     const cleanEmail = adminEmail.trim().toLowerCase();
     const cleanPwd = adminPassword.trim();
+    const cleanPwdNoSpaces = cleanPwd.replace(/\s+/g, '');
 
-    if (
-      (cleanEmail === 'info@admarketing.it' ||
-       cleanEmail === 'admin@weddingconcierge.it' ||
-       cleanEmail === (ADMIN_CREDENTIALS.email || '').toLowerCase()) &&
-      (cleanPwd === 'WeddingAdmin2026!' || cleanPwd === ADMIN_CREDENTIALS.password)
-    ) {
+    const allowedEmails = [
+      'apulianweddingconcierge@gmail.com',
+      'info@admarketing.it',
+      'admin@weddingconcierge.it',
+      'valeria@admarketing.it',
+      'valeria',
+      (ADMIN_CREDENTIALS.email || '').toLowerCase(),
+      (ADMIN_CREDENTIALS.agencyEmail || '').toLowerCase(),
+      (ADMIN_CREDENTIALS.alternativeEmail || '').toLowerCase()
+    ];
+
+    const isPasswordValid =
+      cleanPwd === 'admin2026' ||
+      cleanPwd === 'WeddingAdmin2026!' ||
+      cleanPwd === 'Valeria2026!' ||
+      cleanPwd === ADMIN_CREDENTIALS.password ||
+      cleanPwd === 'szzl gakw jpia wtwj' ||
+      cleanPwdNoSpaces === 'szzlgakwjpiawtwj';
+
+    if (allowedEmails.includes(cleanEmail) && isPasswordValid) {
       onAdminLogin(rememberMeAdmin);
     } else {
-      setAdminError('Credenziali agenzia non valide. Per assistenza o per recuperare la password dello staff contatta info@admarketing.it.');
+      setAdminError('Credenziali non valide. Puoi accedere con apulianweddingconcierge@gmail.com / admin2026 oppure info@admarketing.it. Per assistenza contatta info@admarketing.it.');
     }
   };
 
@@ -1019,15 +1040,26 @@ export default function HomeLogin({
           </div>
 
           {/* Credenziali Accesso Staff Agenzia AD Marketing */}
-          <div className="max-w-md mx-auto p-4 rounded-xl bg-neutral-50 border border-neutral-200 text-xs space-y-2.5 shadow-2xs">
+          <div className="max-w-md mx-auto p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-2.5 shadow-2xs">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-stone-800 flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-neutral-500" />
-                <span>Richiesta Credenziali</span>
+              <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-amber-700" />
+                <span>Credenziali Valeria / Staff Agenzia</span>
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminEmail('apulianweddingconcierge@gmail.com');
+                  setAdminPassword('admin2026');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-amber-200/70 hover:bg-amber-300 text-amber-900 font-bold text-[11px] transition-colors cursor-pointer"
+              >
+                ⚡ Inserisci per Valeria
+              </button>
             </div>
-            <div className="text-[11px] text-neutral-600">
-              Per accedere come staff, inserisci le tue credenziali aziendali. In caso di smarrimento, contatta <strong className="font-semibold text-stone-800">info@admarketing.it</strong>.
+            <div className="text-[11px] text-stone-700 leading-relaxed space-y-1">
+              <div><strong>Email:</strong> <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200 text-amber-900">apulianweddingconcierge@gmail.com</code> (o <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200">info@admarketing.it</code>)</div>
+              <div><strong>Password:</strong> <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200 text-amber-900">admin2026</code> (o <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200">WeddingAdmin2026!</code>)</div>
             </div>
           </div>
 

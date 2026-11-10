@@ -1,5 +1,49 @@
 [
   {
+    "id": "log-1794327670572-r55m",
+    "actorName": "Staff",
+    "actorRole": "Admin",
+    "actionType": "WEDDING_CREATED",
+    "entityType": "WEDDING",
+    "entityTitle": "Eleonora & Lorenzo",
+    "details": "Creato: ELEONORA-LORENZO-2026",
+    "timestamp": "2026-11-10T16:21:10.572Z"
+  },
+  {
+    "id": "log-1794327649569",
+    "action": "COUPLE_ONBOARDING_RECEIVED",
+    "details": "Ricevuto questionario onboarding per Eleonora & Lorenzo (Masseria Torre Coccaro, Savelletri)",
+    "author": "Sposi (Landing Onboarding)",
+    "timestamp": "2026-11-10T16:20:49.569Z"
+  },
+  {
+    "id": "log-1794327649568-00iu",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_SENT",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email SMTP inviata a apulianweddingconcierge@gmail.com: \"💍 Nuovo Matrimonio da Onboarding: Eleonora & Lorenzo\"",
+    "timestamp": "2026-11-10T16:20:49.568Z"
+  },
+  {
+    "id": "log-1794327146105-x1xs",
+    "actorName": "Gateway Email",
+    "actorRole": "Sistema",
+    "actionType": "EMAIL_SENT",
+    "entityType": "EMAIL",
+    "entityTitle": "apulianweddingconcierge@gmail.com",
+    "details": "Email SMTP inviata con successo a apulianweddingconcierge@gmail.com: \"Nuovo Matrimonio da Onboarding - TestSposa & TestSposo\"",
+    "timestamp": "2026-11-10T16:12:26.105Z"
+  },
+  {
+    "id": "log-1794327145508",
+    "action": "COUPLE_ONBOARDING_RECEIVED",
+    "details": "Ricevuto questionario onboarding per TestSposa & TestSposo (Masseria San Domenico)",
+    "author": "Sposi (Landing Onboarding)",
+    "timestamp": "2026-11-10T16:12:25.508Z"
+  },
+  {
     "id": "log-1794326643110-u63e",
     "actorName": "Gateway Email",
     "actorRole": "Sistema",

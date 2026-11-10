@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 export default async function handler(req, res) {
   // Abilita CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -15,17 +17,42 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const body = req.body || {};
-      const to = body.to || body.to_email || body.recipientEmail || 'ospiti';
-      const subject = body.subject || 'Notifica Nozze';
-      
-      console.log(`[Vercel API Send-Email] Notifica inviata con successo a ${to} - Oggetto: ${subject}`);
-      
+      const to = body.to || body.to_email || body.recipientEmail || 'apulianweddingconcierge@gmail.com';
+      const subject = body.subject || 'Notifica AD Marketing - Wedding Concierge';
+      const html = body.html || body.text || '';
+      const text = body.text || '';
+
+      const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+      const port = Number(process.env.SMTP_PORT || 465);
+      const user = process.env.SMTP_USER || 'apulianweddingconcierge@gmail.com';
+      const pass = (process.env.SMTP_PASS || 'szzl gakw jpia wtwj').trim();
+      const fromEmail = process.env.SMTP_FROM || 'apulianweddingconcierge@gmail.com';
+
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass }
+      });
+
+      const info = await transporter.sendMail({
+        from: `"Apulian Wedding Concierge" <${fromEmail}>`,
+        to,
+        subject,
+        html: html || `<p>${text}</p>`,
+        text: text || ''
+      });
+
+      console.log(`[Vercel API Send-Email] Email inviata via SMTP a ${to}: ${info.messageId}`);
       return res.status(200).json({
         success: true,
-        message: `Email inviata con successo a ${to}`,
+        message: `Email inviata con successo via SMTP a ${to}`,
+        deliveryId: info.messageId,
+        provider: 'smtp',
         timestamp: new Date().toISOString()
       });
     } catch (err) {
+      console.error('[Vercel API Send-Email] Errore invio SMTP:', err);
       return res.status(200).json({
         success: true,
         message: 'Email registrata nell outbox locale',
@@ -34,5 +61,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status: 'ok', service: 'AD Marketing Email Gateway' });
+  return res.status(200).json({ status: 'ok', service: 'Apulian Wedding Concierge Email Gateway' });
 }

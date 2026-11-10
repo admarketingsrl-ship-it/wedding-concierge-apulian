@@ -1392,8 +1392,63 @@ app.get('/api/onboarding', (req, res) => {
   }
 });
 
+// Helper invio diretto SMTP Gmail per notifiche interne istantanee
+async function sendDirectSmtpEmail({ to, subject, html, text }) {
+  const savedSmtp = loadJsonFile('smtp_settings.json', {});
+  const host = savedSmtp.host || process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(savedSmtp.port || process.env.SMTP_PORT || 465);
+  const user = savedSmtp.user || process.env.SMTP_USER || 'apulianweddingconcierge@gmail.com';
+  const pass = (savedSmtp.pass || process.env.SMTP_PASS || 'szzl gakw jpia wtwj').trim();
+  const fromEmail = savedSmtp.fromEmail || process.env.SMTP_FROM || 'apulianweddingconcierge@gmail.com';
+  const recipient = to || 'apulianweddingconcierge@gmail.com';
+
+  const emailRecord = {
+    id: `mail-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    to: recipient,
+    from: fromEmail,
+    subject: subject || 'Notifica AD Marketing - Wedding Concierge',
+    html: html || text || '',
+    text: text || '',
+    timestamp: new Date().toISOString(),
+    status: 'pending',
+    provider: 'smtp'
+  };
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass }
+    });
+
+    const info = await transporter.sendMail({
+      from: `"Apulian Wedding Concierge" <${fromEmail}>`,
+      to: recipient,
+      subject: emailRecord.subject,
+      html: emailRecord.html,
+      text: emailRecord.text
+    });
+
+    console.log(`✅ [Direct SMTP] Email inviata con successo a ${recipient}! MessageId: ${info.messageId}`);
+    emailRecord.status = 'sent_smtp';
+    emailRecord.deliveryId = info.messageId;
+    globalOutboxEmails.unshift(emailRecord);
+    saveJsonFile('outbox.json', globalOutboxEmails.slice(0, 100));
+    addAuditLog('Gateway Email', 'Sistema', 'EMAIL_SENT', 'EMAIL', recipient, `Email SMTP inviata a ${recipient}: "${emailRecord.subject}"`);
+    return { success: true, messageId: info.messageId, record: emailRecord };
+  } catch (err) {
+    console.error('❌ [Direct SMTP] Errore invio email:', err);
+    emailRecord.status = 'failed';
+    emailRecord.error = err.message;
+    globalOutboxEmails.unshift(emailRecord);
+    saveJsonFile('outbox.json', globalOutboxEmails.slice(0, 100));
+    return { success: false, error: err.message, record: emailRecord };
+  }
+}
+
 // POST /api/onboarding - Ricezione nuovo questionario compilato dalla sposa/coppia
-app.post('/api/onboarding', (req, res) => {
+app.post('/api/onboarding', async (req, res) => {
   try {
     const dossier = req.body;
     if (!dossier || (!dossier.brideName && !dossier.groomName)) {
@@ -1411,20 +1466,69 @@ app.post('/api/onboarding', (req, res) => {
     const updatedList = [newDossier, ...currentList.filter(d => d.id !== newDossier.id)];
     saveJsonFile('onboarding.json', updatedList);
 
-    // Notifica email a Valeria
+    // Notifica email immediata e diretta a Valeria via SMTP Gmail
+    const adminUrl = `${CLIENT_URL}/?view=admin`;
+    const subject = `💍 Nuovo Matrimonio da Onboarding: ${newDossier.brideName} & ${newDossier.groomName}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #292524; border: 1px solid #e7e5e4; border-radius: 16px; overflow: hidden; background: #ffffff;">
+        <div style="background: #1c1917; padding: 24px; text-align: center; color: #ffffff;">
+          <h2 style="margin: 0 0 6px 0; color: #f59e0b; font-size: 22px;">Apulian Wedding Concierge</h2>
+          <p style="margin: 0; color: #d6d3d1; font-size: 13px;">Nuovo Questionario Onboarding Ricevuto</p>
+        </div>
+        <div style="padding: 24px;">
+          <p style="font-size: 15px; margin-top: 0;">Ciao <strong>Valeria</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6;">
+            La sposa ha appena completato il questionario dalla landing page di benvenuto! Ecco i dettagli salienti per creare il matrimonio ed avviare i servizi di concierge:
+          </p>
+          <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 12px; padding: 18px; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr><td style="padding: 6px 0; color: #78716c; width: 140px;"><strong>Coppia:</strong></td><td style="padding: 6px 0; font-weight: bold; color: #1c1917;">${newDossier.brideName} & ${newDossier.groomName}</td></tr>
+              <tr><td style="padding: 6px 0; color: #78716c;"><strong>Data Nozze:</strong></td><td style="padding: 6px 0;">${newDossier.weddingDate || 'Da definire'}</td></tr>
+              <tr><td style="padding: 6px 0; color: #78716c;"><strong>Location / Masseria:</strong></td><td style="padding: 6px 0;">${newDossier.venueLocation || 'Puglia'}</td></tr>
+              <tr><td style="padding: 6px 0; color: #78716c;"><strong>Email Sposa:</strong></td><td style="padding: 6px 0;"><a href="mailto:${newDossier.coupleEmail}" style="color: #b45309;">${newDossier.coupleEmail}</a></td></tr>
+              <tr><td style="padding: 6px 0; color: #78716c;"><strong>WhatsApp / Cell:</strong></td><td style="padding: 6px 0;"><a href="https://wa.me/${(newDossier.phoneWhatsapp || '').replace(/[^0-9]/g, '')}" style="color: #059669; font-weight: bold;">${newDossier.phoneWhatsapp}</a></td></tr>
+              <tr><td style="padding: 6px 0; color: #78716c;"><strong>Invitati Stimati:</strong></td><td style="padding: 6px 0;">${newDossier.estimatedGuestsCount || 80} (${newDossier.outOfTownGuestsCount || 50} da fuori)</td></tr>
+              <tr><td style="padding: 6px 0; color: #78716c;"><strong>Canale Kickoff:</strong></td><td style="padding: 6px 0;">${newDossier.kickoffCallChannel || 'WHATSAPP'} (${newDossier.kickoffCallTime || 'Pomeriggio'})</td></tr>
+            </table>
+            ${newDossier.specialNotesForValeria ? `
+              <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed #d6d3d1; font-style: italic; color: #57534e; font-size: 12px;">
+                "Note per Valeria: ${newDossier.specialNotesForValeria}"
+              </div>
+            ` : ''}
+          </div>
+          <div style="text-align: center; margin: 28px 0 10px 0;">
+            <a href="${adminUrl}" style="background: #b45309; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; font-size: 14px; display: inline-block;">
+              Accedi al Portale per Creare il Matrimonio
+            </a>
+          </div>
+          <p style="font-size: 11px; color: #a8a29e; text-align: center; margin-top: 18px;">
+            Nel portale Valeria troverà la scheda dossier in "Invito Sposi & Landing Page" con il pulsante <strong>Crea Matrimonio dal Dossier</strong> per renderlo immediatamente effettivo.
+          </p>
+        </div>
+      </div>
+    `;
+
+    const emailText = `Nuovo Questionario Onboarding Sposi Ricevuto!
+Coppia: ${newDossier.brideName} & ${newDossier.groomName}
+Data Nozze: ${newDossier.weddingDate || 'Da definire'}
+Location: ${newDossier.venueLocation || 'Puglia'}
+Email: ${newDossier.coupleEmail}
+WhatsApp: ${newDossier.phoneWhatsapp}
+Invitati: ${newDossier.estimatedGuestsCount || 80}
+Canale Kickoff: ${newDossier.kickoffCallChannel || 'WHATSAPP'}
+
+Accedi al portale per convertire il dossier in matrimonio effettivo:
+${adminUrl}`;
+
     try {
-      fetch(`http://localhost:${PORT}/api/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: 'apulianweddingconcierge@gmail.com',
-          subject: `Nuovo Matrimonio da Onboarding - ${newDossier.brideName} & ${newDossier.groomName}`,
-          text: `È stato ricevuto un nuovo dossier di onboarding per ${newDossier.brideName} & ${newDossier.groomName}. Contatto: ${newDossier.phoneWhatsapp}. Venite a controllare nel portale: ${CLIENT_URL}/?view=admin`,
-          html: `<p>È stato ricevuto un nuovo dossier di onboarding per <strong>${newDossier.brideName} & ${newDossier.groomName}</strong>.</p><p>Contatto: ${newDossier.phoneWhatsapp}</p><p>Venite a controllare nel portale: <a href="${CLIENT_URL}/?view=admin">Vai al Portale Admin</a></p>`
-        })
-      }).catch(err => console.error('Email notify error:', err));
+      await sendDirectSmtpEmail({
+        to: 'apulianweddingconcierge@gmail.com',
+        subject,
+        html: emailHtml,
+        text: emailText
+      });
     } catch (e) {
-      console.error('Email fetch error:', e);
+      console.error('Direct SMTP onboarding error:', e);
     }
 
     // Registra nel log di audit dell'agenzia
@@ -1452,14 +1556,27 @@ app.put('/api/onboarding/:id', (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     const currentList = loadJsonFile('onboarding.json', []);
-    const idx = currentList.findIndex(d => d.id === id);
+    let idx = currentList.findIndex(d => d.id === id);
+
     if (idx === -1) {
-      return res.status(404).json({ success: false, message: 'Dossier onboarding non trovato' });
+      // Cerca anche per email o nomi se l'id non corrisponde esattamente
+      idx = currentList.findIndex(d => 
+        (updates.coupleEmail && d.coupleEmail && d.coupleEmail.toLowerCase() === updates.coupleEmail.toLowerCase()) ||
+        (updates.brideName && d.brideName && d.brideName.toLowerCase() === updates.brideName.toLowerCase())
+      );
     }
 
-    currentList[idx] = { ...currentList[idx], ...updates, updatedAt: new Date().toISOString() };
-    saveJsonFile('onboarding.json', currentList);
-    return res.status(200).json({ success: true, dossier: currentList[idx] });
+    if (idx >= 0) {
+      currentList[idx] = { ...currentList[idx], ...updates, updatedAt: new Date().toISOString() };
+      saveJsonFile('onboarding.json', currentList);
+      return res.status(200).json({ success: true, dossier: currentList[idx] });
+    } else {
+      // Se non esiste, crea la voce per non perdere lo stato
+      const newEntry = { id, ...updates, updatedAt: new Date().toISOString() };
+      currentList.unshift(newEntry);
+      saveJsonFile('onboarding.json', currentList);
+      return res.status(200).json({ success: true, dossier: newEntry });
+    }
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

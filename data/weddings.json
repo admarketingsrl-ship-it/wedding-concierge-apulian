@@ -1,5 +1,22 @@
 [
   {
+    "weddingCode": "ELEONORA-LORENZO-2026",
+    "coupleNames": "Eleonora & Lorenzo",
+    "coupleEmail": "eleonora.lorenzo2026@gmail.com",
+    "couplePhone": "+393471234567",
+    "couplePassword": "Sposi2026!",
+    "weddingDate": "2026-10-10",
+    "venue": "Masseria Torre Coccaro",
+    "city": "Savelletri (BR)",
+    "country": "Italia",
+    "hotels": [],
+    "transfers": [],
+    "experiences": [],
+    "extraServices": [],
+    "guests": [],
+    "id": "wed-1794327670570"
+  },
+  {
     "id": "wed-1",
     "weddingCode": "CHIARA-MATTEO-2026",
     "coupleNames": "Chiara Rossi & Matteo De Luca",

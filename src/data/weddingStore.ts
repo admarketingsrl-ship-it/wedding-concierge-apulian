@@ -1263,11 +1263,13 @@ export const INITIAL_SUPPLIER_BOOKINGS: SupplierBookingOrder[] = [
   }
 ];
 
-// Credenziali amministrative per l'accesso Agenzia AD Marketing
+// Credenziali amministrative per l'accesso Agenzia AD Marketing (Valeria)
 export const ADMIN_CREDENTIALS = {
-  email: 'info@admarketing.it',
+  email: 'apulianweddingconcierge@gmail.com',
+  agencyEmail: 'info@admarketing.it',
   alternativeEmail: 'admin@weddingconcierge.it',
   password: 'admin2026',
+  appPassword: 'szzl gakw jpia wtwj',
   name: 'Staff Concierge AD Marketing (Valeria)',
   role: 'CHIEF_CONCIERGE'
 };
